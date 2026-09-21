@@ -54,7 +54,6 @@ class Settings(BaseSettings):
     AWS_S3_BUCKET_NAME: str = Field(alias="R2_BUCKET_NAME")
     AWS_S3_ENDPOINT_URL: str = Field(alias="R2_ENDPOINT_URL")
 
-
     @property
     def DATABASE_URL_ASYNC(self) -> str:
         return URL.create(
