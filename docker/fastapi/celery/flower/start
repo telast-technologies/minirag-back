@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+
+exec celery -A src.workers.celery_app flower --port=5555

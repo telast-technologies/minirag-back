@@ -1,0 +1,207 @@
+name: minirag-local
+
+services:
+  api: &api
+    build:
+      context: .
+      dockerfile: ./docker/fastapi/Dockerfile
+      args:
+        BUILD_ENV: local
+    image: minirag-back-api
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    env_file:
+      - ./docker/.env
+    networks:
+      - internal_net
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./docker/postgres/Dockerfile
+    image: minirag_local_postgres
+    restart: unless-stopped
+    env_file:
+      - ./docker/.env
+    volumes:
+      - minirag_local_postgres_data:/var/lib/postgresql/data
+      - minirag_local_postgres_data_backups:/backups
+    ports:
+      - "5432:5432"
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - internal_net
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  celery_worker:
+    <<: *api
+    container_name: minirag_local_celeryworker
+    ports: []
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: /start-celeryworker
+
+  celerybeat:
+    <<: *api
+    container_name: minirag_local_celerybeat
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports: []
+    command: /start-celerybeat
+
+  flower:
+      <<: *api
+      container_name: minirag_local_flower
+      command: /start-flower
+      ports:
+        - "5555:5555"
+      networks:
+        - internal_net
+      depends_on:
+        redis:
+          condition: service_healthy
+        postgres:
+          condition: service_healthy
+      healthcheck:
+        test: ["CMD-SHELL", "wget -qO- http://localhost:5555/metrics >/dev/null 2>&1"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+        start_period: 20s
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - local_prom_data:/prometheus
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - internal_net
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/ready >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:11.6.0-ubuntu
+    env_file:
+      - ./docker/.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - local_grafana_data:/var/lib/grafana
+    networks:
+      - internal_net
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q OK"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: always
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - internal_net
+    restart: always
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: postgres-exporter
+    ports:
+      - "9187:9187"
+    env_file:
+      - ./docker/.env
+    depends_on:
+      - postgres
+    networks:
+      - internal_net
+    restart: always
+
+volumes:
+  minirag_local_postgres_data:
+  minirag_local_postgres_data_backups:
+  local_grafana_data:
+  local_prom_data:
+  qdrant_data:
+
+networks:
+  internal_net:
+    driver: bridge
