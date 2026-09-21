@@ -150,11 +150,6 @@ def patched_settings(monkeypatch):
     monkeypatch.setattr(settings, "AWS_S3_BUCKET_NAME", "bucket-name")
     monkeypatch.setattr(settings, "AWS_S3_ENDPOINT_URL", "https://r2.example.com")
 
-    monkeypatch.setattr(settings, "GRAFANA_USER", "grafana-user")
-    monkeypatch.setattr(settings, "GRAFANA_PASS", "grafana-pass")
-    monkeypatch.setattr(settings, "GRAFANA_CLOUD_USER", None)
-    monkeypatch.setattr(settings, "GRAFANA_CLOUD_TOKEN", None)
-
     monkeypatch.setattr(settings, "JWT_SECRET_KEY", "unit-test-secret")
     monkeypatch.setattr(settings, "JWT_ALGORITHM", "HS256")
     monkeypatch.setattr(settings, "ACCESS_TOKEN_TIME_OUT", 15)
