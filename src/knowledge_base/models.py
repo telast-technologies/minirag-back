@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 
 from sqlalchemy import Column
@@ -6,7 +8,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from src.config.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 from src.knowledge_base.enums import AssetStatus, AssetType
-from src.projects.models import Project
 
 
 class Asset(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):

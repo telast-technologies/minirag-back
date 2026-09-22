@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
 from src.config.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin
-from src.knowledge_base.models import Asset
 from src.users.models import User
 
 

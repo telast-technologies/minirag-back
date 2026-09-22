@@ -9,7 +9,7 @@ from src.knowledge_base.enums import AssetStatus, AssetType
 
 
 class CreateTextAssetSchema(BaseModel):
-    content: list[str] = Field(..., max_length=100000, min_length=100)
+    content: list[Annotated[str, Field(min_length=100, max_length=10000)]] = Field(..., max_length=3, min_length=1)
 
 
 class CreateURlAssetSchema(BaseModel):

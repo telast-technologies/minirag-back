@@ -4,14 +4,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel import SQLModel
 
 from src.config.settings import settings
-
-# TODO: import models to register them with SQLAlchemy
-from src.users.models import User
-from src.projects.models import Project
-from src.knowledge_base.models import Asset
+from src.config.db.models import metadata
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_ASYNC)
@@ -19,7 +14,7 @@ config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_ASYNC)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = SQLModel.metadata
+target_metadata = metadata
 
 
 def run_migrations_offline() -> None:

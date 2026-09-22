@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi_storages.integrations.sqlalchemy import FileType
 from sqlalchemy import Column
 from sqlmodel import Field, Relationship, SQLModel
@@ -5,7 +7,6 @@ from sqlmodel import Field, Relationship, SQLModel
 from src.config.db.mixins import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from src.config.hashers import hasher
 from src.config.storage import S3Storage
-from src.projects.models import Project
 
 
 class User(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, table=True):

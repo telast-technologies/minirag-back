@@ -3,16 +3,11 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from src.config.db.models import metadata
 from src.config.loggers import Logger
 from src.config.settings import settings
-from src.knowledge_base.models import Asset  # noqa: F401
-from src.projects.models import Project  # noqa: F401
-
-# TODO: import models to register them with SQLAlchemy
-from src.users.models import User  # noqa: F401
 
 logger = Logger(__name__)
 
@@ -31,7 +26,7 @@ async def init_db():
     """
     try:
         async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
+            await conn.run_sync(metadata.create_all)
 
         logger.info("Database connected and tables created successfully.")
     except Exception as e:
