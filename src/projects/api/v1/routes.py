@@ -1,17 +1,17 @@
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
 
-from src.projects.api.v1.schemas import ProjectDetailSchema, UpdateProjectSchema, CreateProjectSchema
 from src.config.db.session import DBSession
 from src.config.exceptions import InternalServerException, NotFoundException
 from src.config.loggers import Logger
-from src.config.settings import settings
-from src.projects.crud import ProjectCRUD
 from src.config.permissions import CurrentUserDep
+from src.config.settings import settings
+from src.projects.api.v1.schemas import CreateProjectSchema, ProjectDetailSchema, UpdateProjectSchema
+from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
-
 
 logger = Logger(name=__name__)
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -40,7 +40,6 @@ async def create_project(
         raise InternalServerException("Failed to create project")
 
 
-
 @router.get("/get_projects", response_model=Page[ProjectDetailSchema])
 @settings.LIMITER.limit("50/minute")
 async def get_projects(
@@ -55,11 +54,11 @@ async def get_projects(
         projects = project_crud.select(
             Project.user_id == user.id,
         )
-        return await apaginate(db, projects, pagination_params, subquery_count=True, unwrap_mode="auto")    
+        return await apaginate(db, projects, pagination_params, subquery_count=True, unwrap_mode="auto")
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to get projects")
-    
+
 
 @router.patch("/update/{project_id}", response_model=ProjectDetailSchema)
 @settings.LIMITER.limit("50/minute")
@@ -89,4 +88,4 @@ async def update_project(
         raise
     except Exception:
         await db.rollback()
-        raise InternalServerException("Failed to update project")   
+        raise InternalServerException("Failed to update project")

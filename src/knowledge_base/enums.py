@@ -6,6 +6,7 @@ class AssetStatus(str, Enum):
     INDEXED = "indexed"
     FAILED = "failed"
 
+
 class AssetType(str, Enum):
     TEXT = "text"
     FILE = "file"

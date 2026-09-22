@@ -9,7 +9,6 @@ class CreateProjectSchema(BaseModel):
     system_prompt: str = Field(..., max_length=10000, min_length=100)
 
 
-
 class ProjectDetailSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -18,7 +17,6 @@ class ProjectDetailSchema(BaseModel):
     system_prompt: str
     created_at: datetime
     updated_at: datetime
-
 
 
 class UpdateProjectSchema(BaseModel):

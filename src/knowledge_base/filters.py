@@ -1,11 +1,8 @@
-import uuid
-
-from fastapi_filter import FilterDepends, with_prefix
 from fastapi_filter.contrib.sqlalchemy import Filter
 from pydantic import Field
 
-from src.knowledge_base.models import Asset
-from src.knowledge_base.models import AssetType, AssetStatus
+from src.knowledge_base.models import Asset, AssetStatus, AssetType
+
 
 class AssetFilter(Filter):
     type: AssetType | None = None
