@@ -9,11 +9,11 @@ from src.knowledge_base.enums import AssetStatus, AssetType
 
 
 class CreateTextAssetSchema(BaseModel):
-    content: str = Field(..., max_length=100000, min_length=100)
+    content: list[str] = Field(..., max_length=100000, min_length=100)
 
 
 class CreateURlAssetSchema(BaseModel):
-    content: Annotated[HttpUrl, AfterValidator(lambda url: str(url))]
+    content: list[Annotated[HttpUrl, AfterValidator(lambda url: str(url))]]
 
 
 class CreateFileAssetSchema(BaseModel):

@@ -37,7 +37,7 @@ async def create_text_assets(
     db: DBSession,
     project_id: UUID,
     user: CurrentUserDep,
-    body: list[CreateTextAssetSchema],
+    body: CreateTextAssetSchema,
 ):
     project_crud = ProjectCRUD(db)
     asset_crud = AssetCRUD(db)
@@ -49,9 +49,9 @@ async def create_text_assets(
             raise NotFoundException("Project not found")
 
         new_assets = []
-        for asset in body:
+        for content in body.content:
             # normalized_name is content without spaces and with underscore
-            name = hasher.hash(asset.content)
+            name = hasher.hash(content)
             # add text to asset
             new_assets.append(
                 await asset_crud.create(
@@ -60,7 +60,7 @@ async def create_text_assets(
                         "name": name,
                         "type": AssetType.TEXT.value,
                         "asset_metadata": {},
-                        **asset.model_dump(exclude_unset=True, exclude_none=True),
+                        "content": content,
                     }
                 )
             )
@@ -84,7 +84,7 @@ async def create_url_assets(
     db: DBSession,
     project_id: UUID,
     user: CurrentUserDep,
-    body: list[CreateURlAssetSchema],
+    body: CreateURlAssetSchema,
 ):
     project_crud = ProjectCRUD(db)
     asset_crud = AssetCRUD(db)
@@ -96,9 +96,9 @@ async def create_url_assets(
             raise NotFoundException("Project not found")
 
         new_assets = []
-        for asset in body:
+        for content in body.content:
             # normalized_name is content without spaces and with underscore
-            name = hasher.hash(asset.content)
+            name = hasher.hash(content)
             # add url to assets
             new_assets.append(
                 await asset_crud.create(
@@ -107,7 +107,7 @@ async def create_url_assets(
                         "name": name,
                         "type": AssetType.URL.value,
                         "asset_metadata": {},
-                        **asset.model_dump(exclude_unset=True, exclude_none=True),
+                        "content": content,
                     }
                 )
             )
@@ -143,11 +143,11 @@ async def create_file_assets(
             raise NotFoundException("Project not found")
 
         new_assets = []
-        for asset in body.content:
+        for content in body.content:
             # normalized_name is content without spaces and with underscore
-            name = f"{project.id}_{hasher.hash(asset.filename)}_{asset.filename}"
+            name = f"{project.id}_{hasher.hash(content.filename)}_{content.filename}"
             # writ to r2 then store key
-            storage_key = S3Storage.write(asset.file, name)
+            storage_key = S3Storage.write(content, name)
             # create file as asset
             new_assets.append(
                 await asset_crud.create(
@@ -156,9 +156,9 @@ async def create_file_assets(
                         "name": name,
                         "type": AssetType.FILE.value,
                         "asset_metadata": {
-                            "size": asset.size,
-                            "original_name": asset.filename,
-                            "content_type": asset.content_type,
+                            "size": content.size,
+                            "original_name": content.filename,
+                            "content_type": content.content_type,
                         },
                         "content": storage_key,
                     }
