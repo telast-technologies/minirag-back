@@ -98,24 +98,24 @@ services:
     command: /start-celerybeat
 
   flower:
-      <<: *api
-      container_name: minirag_local_flower
-      command: /start-flower
-      ports:
-        - "5555:5555"
-      networks:
-        - internal_net
-      depends_on:
-        redis:
-          condition: service_healthy
-        postgres:
-          condition: service_healthy
-      healthcheck:
-        test: ["CMD-SHELL", "wget -qO- http://localhost:5555/metrics >/dev/null 2>&1"]
-        interval: 10s
-        timeout: 5s
-        retries: 10
-        start_period: 20s
+    <<: *api
+    container_name: minirag_local_flower
+    command: /start-flower
+    ports:
+      - "5555:5555"
+    networks:
+      - internal_net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5555/metrics >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   prometheus:
     image: prom/prometheus:latest
@@ -183,17 +183,19 @@ services:
     restart: always
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.17.1
+    image: prometheuscommunity/postgres-exporter
     container_name: postgres-exporter
     ports:
       - "9187:9187"
     env_file:
       - ./docker/.env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - internal_net
     restart: always
+
 
 volumes:
   minirag_local_postgres_data:

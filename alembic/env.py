@@ -10,6 +10,8 @@ from src.config.settings import settings
 
 # TODO: import models to register them with SQLAlchemy
 from src.users.models import User
+from src.projects.models import Project
+from src.knowledge_base.models import Asset
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_ASYNC)

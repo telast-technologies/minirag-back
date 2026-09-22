@@ -8,6 +8,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.config.loggers import Logger
 from src.config.settings import settings
+from src.knowledge_base.models import Asset  # noqa: F401
+from src.projects.models import Project  # noqa: F401
 
 # TODO: import models to register them with SQLAlchemy
 from src.users.models import User  # noqa: F401

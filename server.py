@@ -10,6 +10,8 @@ from src.config.db.session import close_db, init_db
 from src.config.hashers import hasher
 from src.config.middlewares import MIDDLEWARES
 from src.config.settings import settings
+from src.knowledge_base.api.v1.routes import router as knowledge_base_router
+from src.projects.api.v1.routes import router as project_router
 from src.users.api.v1.routes import router as user_router
 
 
@@ -34,11 +36,13 @@ def create_app() -> FastAPI:
     async def metrics() -> Response:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
-    @app.get("/health", tags=["Health Check"], summary="Health Check Endpoint")
-    async def health():
+    @app.get("/health", tags=["Health Check"], summary="Health Check Endpoint", response_model=dict[str, str])
+    async def health() -> dict[str, str]:
         return {"message": "health check ok"}
 
     app.include_router(user_router)
+    app.include_router(project_router)
+    app.include_router(knowledge_base_router)
     add_pagination(app)
     return app
 

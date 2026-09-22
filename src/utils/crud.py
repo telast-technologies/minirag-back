@@ -13,20 +13,19 @@ class CRUDBase(Generic[ModelType]):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def select(self) -> Select[Any]:
-        return select(self.model)
-
-    async def get(self, *where: Any) -> ModelType | None:
+    def select(self, *where: Any) -> Select[Any]:
         statement = select(self.model)
         if where:
             statement = statement.where(*where)
+        return statement
+
+    async def get(self, *where: Any) -> ModelType | None:
+        statement = self.select(*where)
         result = await self.session.exec(statement)
         return result.first()
 
     async def list(self, *where: Any) -> list[ModelType]:
-        statement = select(self.model)
-        if where:
-            statement = statement.where(*where)
+        statement = self.select(*where)
         result = await self.session.exec(statement)
         return result.all()
 

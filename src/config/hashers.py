@@ -1,3 +1,5 @@
+import hashlib
+
 from pwdlib import PasswordHash
 
 
@@ -37,4 +39,24 @@ class HashingService:
         return self.password_hash.hash(password)
 
 
+class HashTextService:
+    """
+    Service for hashing text.
+    """
+
+    def hash(self, raw_text: str) -> str:
+        """
+        Hash a text.
+
+        Args:
+            text (str): Plain text to hash.
+
+        Returns:
+            str: Hashed text.
+        """
+        text = str(raw_text)
+        return hashlib.sha256(text.encode()).hexdigest()
+
+
 hasher = HashingService()
+hash_text_service = HashTextService()

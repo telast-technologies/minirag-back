@@ -11,7 +11,7 @@ class RegisterUserSchema(BaseModel):
     username: str
     password: str = Field(..., min_length=8, max_length=128)
     email: EmailStr
-    phone: E164PhoneNumber
+    phone: E164PhoneNumber = Field(..., example="+1234567890", description="Phone number in E.164 format")
 
 
 class LoginUserSchema(BaseModel):
@@ -25,7 +25,7 @@ class UserDetailSchema(BaseModel):
     id: UUID
     username: str
     email: EmailStr
-    phone: E164PhoneNumber
+    phone: E164PhoneNumber = Field(..., example="+1234567890", description="Phone number in E.164 format")
     avatar: HttpUrl | None = None
     is_active: bool
     is_superuser: bool
