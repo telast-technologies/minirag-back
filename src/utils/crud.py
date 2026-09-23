@@ -2,7 +2,7 @@ from typing import Any, Generic, TypeVar
 
 from sqlalchemy.sql import Select
 from sqlmodel import SQLModel, select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from src.config.db.session import db_session_context
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
 
@@ -10,8 +10,11 @@ ModelType = TypeVar("ModelType", bound=SQLModel)
 class CRUDBase(Generic[ModelType]):
     model: type[ModelType]
 
-    def __init__(self, session: AsyncSession):
-        self.session = session
+    def __init__(self):
+        try:
+            self.session = db_session_context.get()
+        except LookupError:
+            raise RuntimeError("Database session not found in context. Ensure 'get_db' dependency is running.")
 
     def select(self, *where: Any) -> Select[Any]:
         statement = select(self.model)

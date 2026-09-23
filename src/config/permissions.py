@@ -3,12 +3,11 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, Request
 
-from src.config.db.session import DBSession
 from src.config.exceptions import ForbiddenException, NotFoundException, UnAuthorizedException
 from src.config.settings import settings
 from src.users.crud import UserCRUD
 from src.users.models import User
-
+from src.config.db.session import DBSession
 
 class CurrentUser:
     def __init__(self, required: bool = True):
@@ -17,14 +16,17 @@ class CurrentUser:
     async def __call__(
         self,
         request: Request,
-        db: DBSession,
+        db: DBSession
     ) -> User | None:
-        token = request.cookies.get(settings.JWT_COOKIE_NAME)
+
+        token = (
+            request.cookies.get(settings.JWT_COOKIE_NAME)
+        )
 
         if not token:
-            if self.required:
-                raise UnAuthorizedException("Not authenticated")
-            return None
+            if not self.required:
+                return None
+            raise UnAuthorizedException("Not authenticated")
 
         try:
             payload = jwt.decode(
@@ -43,7 +45,7 @@ class CurrentUser:
             raise UnAuthorizedException("Invalid token")
 
         user_id = payload["sub"]
-        user_crud = UserCRUD(db)
+        user_crud = UserCRUD()
         user = await user_crud.get(User.id == user_id)
 
         if not user:

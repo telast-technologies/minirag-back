@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import File, Form, UploadFile
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
 
-from src.utils.abstracts.schemas import E164PhoneNumber
+from src.utils.schemas import E164PhoneNumber
 
 
 class RegisterUserSchema(BaseModel):

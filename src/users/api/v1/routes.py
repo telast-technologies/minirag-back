@@ -31,7 +31,7 @@ async def register_user(
     body: RegisterUserSchema,
     db: DBSession,
 ):
-    user_crud = UserCRUD(db)
+    user_crud = UserCRUD()
     validator = UniqueValidator(user_crud)
 
     await validator.check(
@@ -60,10 +60,10 @@ async def register_user(
 async def login_user(
     request: Request,
     response: Response,
-    body: LoginUserSchema,
     db: DBSession,
+    body: LoginUserSchema,
 ):
-    user_crud = UserCRUD(db)
+    user_crud = UserCRUD()
     user = await user_crud.get(User.username == body.username)
 
     if not user or not request.app.state.hashing.decode(body.password, user.password) or not user.is_active:
@@ -129,7 +129,7 @@ async def update_profile(
     user: CurrentUserDep,
     body: UpdateProfileSchema = Depends(UpdateProfileSchema.as_form),
 ):
-    user_crud = UserCRUD(db)
+    user_crud = UserCRUD()
     # Exclude unset and None values so optional form fields that are omitted
     # (but received as explicit `None` by FastAPI form dependency) do not
     # overwrite existing DB values with NULL.
@@ -149,7 +149,7 @@ async def delete_profile(
     db: DBSession,
     user: CurrentUserDep,
 ):
-    user_crud = UserCRUD(db)
+    user_crud = UserCRUD()
     deleted_user = await user_crud.delete(user)
     await db.commit()
 
@@ -161,11 +161,11 @@ async def delete_profile(
 @settings.LIMITER.limit("50/minute")
 async def request_username_change(
     request: Request,
-    body: RequestUsernameSchema,
     db: DBSession,
     user: CurrentUserDep,
+    body: RequestUsernameSchema,
 ):
-    user_crud = UserCRUD(db)
+    user_crud = UserCRUD()
     validator = UniqueValidator(user_crud)
 
     if body.username != user.username:
@@ -182,9 +182,9 @@ async def request_username_change(
 @settings.LIMITER.limit("50/minute")
 async def change_password(
     request: Request,
-    body: ChangePasswordSchema,
     db: DBSession,
     user: CurrentUserDep,
+    body: ChangePasswordSchema,
 ):
     if not request.app.state.hashing.decode(body.old_password, user.password):
         raise BadRequestException("Old password is incorrect")
@@ -192,7 +192,7 @@ async def change_password(
     if body.old_password == body.new_password:
         raise BadRequestException("New password cannot be the same as old password")
 
-    user_crud = UserCRUD(db)
+    user_crud = UserCRUD()
     new_hashed_password = request.app.state.hashing.encode(body.new_password)
     updated_user = await user_crud.update(user, {"password": new_hashed_password})
 

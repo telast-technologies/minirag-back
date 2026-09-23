@@ -6,12 +6,10 @@ from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
 
 from src.config.db.session import DBSession
-from src.config.exceptions import InternalServerException, NotFoundException
-from src.config.hashers import HashTextService
+from src.config.exceptions import InternalServerException, NotFoundException, BadRequestException
 from src.config.loggers import Logger
 from src.config.permissions import CurrentUserDep
 from src.config.settings import settings
-from src.config.storage import S3Storage
 from src.knowledge_base.api.v1.schemas import (
     AssetDetailSchema,
     CreateFileAssetSchema,
@@ -19,30 +17,29 @@ from src.knowledge_base.api.v1.schemas import (
     CreateURlAssetSchema,
 )
 from src.knowledge_base.crud import AssetCRUD
-from src.knowledge_base.enums import AssetType
 from src.knowledge_base.filters import AssetFilter
 from src.knowledge_base.models import Asset
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
+from src.knowledge_base.services.file import FileContentService
+from src.knowledge_base.services.url import UrlContentService
+from src.knowledge_base.services.text import TextContentService
 
 logger = Logger(name=__name__)
 router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 
 
-@router.post("/{project_id}/create_text", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}/create_texts", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
 @settings.LIMITER.limit("50/minute")
 async def create_text_assets(
     request: Request,
     response: Response,
-    db: DBSession,
     project_id: UUID,
+    db: DBSession,
     user: CurrentUserDep,
     body: CreateTextAssetSchema,
 ):
-    project_crud = ProjectCRUD(db)
-    asset_crud = AssetCRUD(db)
-
-    hasher = HashTextService()
+    project_crud = ProjectCRUD()
     try:
         project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
         if not project:
@@ -51,19 +48,10 @@ async def create_text_assets(
         new_assets = []
         for content in body.content:
             # normalized_name is content without spaces and with underscore
-            name = hasher.hash(content)
+            text_service = TextContentService(content)
+            asset = text_service.save(project)
             # add text to asset
-            new_assets.append(
-                await asset_crud.create(
-                    {
-                        "project_id": project.id,
-                        "name": name,
-                        "type": AssetType.TEXT.value,
-                        "asset_metadata": {},
-                        "content": content,
-                    }
-                )
-            )
+            new_assets.append(asset)
         await db.commit()
         # TODO: chunk the assets content and save the chunks
         logger.info(f"Created new assets: {new_assets}")
@@ -71,25 +59,26 @@ async def create_text_assets(
     except NotFoundException:
         await db.rollback()
         raise
+    except BadRequestException:
+        await db.rollback()
+        raise
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to create assets")
 
 
-@router.post("/{project_id}/create_url", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}/create_urls", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
 @settings.LIMITER.limit("50/minute")
 async def create_url_assets(
     request: Request,
     response: Response,
-    db: DBSession,
     project_id: UUID,
+    db: DBSession,
     user: CurrentUserDep,
     body: CreateURlAssetSchema,
 ):
-    project_crud = ProjectCRUD(db)
-    asset_crud = AssetCRUD(db)
+    project_crud = ProjectCRUD()
 
-    hasher = HashTextService()
     try:
         project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
         if not project:
@@ -97,20 +86,10 @@ async def create_url_assets(
 
         new_assets = []
         for content in body.content:
-            # normalized_name is content without spaces and with underscore
-            name = hasher.hash(content)
             # add url to assets
-            new_assets.append(
-                await asset_crud.create(
-                    {
-                        "project_id": project.id,
-                        "name": name,
-                        "type": AssetType.URL.value,
-                        "asset_metadata": {},
-                        "content": content,
-                    }
-                )
-            )
+            url_service = UrlContentService(content=content)
+            asset = url_service.save(project)
+            new_assets.append(asset)
         await db.commit()
         # TODO: chunk the assets content and save the chunks
         logger.info(f"Created new assets: {new_assets}")
@@ -118,25 +97,25 @@ async def create_url_assets(
     except NotFoundException:
         await db.rollback()
         raise
+    except BadRequestException:
+        await db.rollback()
+        raise
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to create assets")
 
 
-@router.post("/{project_id}/create_file", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}/create_files", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
 @settings.LIMITER.limit("50/minute")
 async def create_file_assets(
     request: Request,
     response: Response,
-    db: DBSession,
     project_id: UUID,
+    db: DBSession,
     user: CurrentUserDep,
     body: CreateFileAssetSchema = Depends(CreateFileAssetSchema.as_form),
 ):
-    project_crud = ProjectCRUD(db)
-    asset_crud = AssetCRUD(db)
-
-    hasher = HashTextService()
+    project_crud = ProjectCRUD()
     try:
         project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
         if not project:
@@ -145,30 +124,18 @@ async def create_file_assets(
         new_assets = []
         for content in body.content:
             # normalized_name is content without spaces and with underscore
-            name = f"{project.id}_{hasher.hash(content.filename)}_{content.filename}"
-            # writ to r2 then store key
-            storage_key = S3Storage.write(content, name)
+            document_service = FileContentService(file=content)
+            asset = await document_service.save(project)
             # create file as asset
-            new_assets.append(
-                await asset_crud.create(
-                    {
-                        "project_id": project.id,
-                        "name": name,
-                        "type": AssetType.FILE.value,
-                        "asset_metadata": {
-                            "size": content.size,
-                            "original_name": content.filename,
-                            "content_type": content.content_type,
-                        },
-                        "content": storage_key,
-                    }
-                )
-            )
+            new_assets.append(asset)
         await db.commit()
         # # TODO: chunk the assets content and save the chunks
         logger.info(f"Created new assets: {new_assets}")
         return [AssetDetailSchema.model_validate(asset) for asset in new_assets]
     except NotFoundException:
+        await db.rollback()
+        raise
+    except BadRequestException:
         await db.rollback()
         raise
     except Exception:
@@ -180,14 +147,14 @@ async def create_file_assets(
 async def get_assets(
     request: Request,
     response: Response,
-    db: DBSession,
     project_id: UUID,
+    db: DBSession,
     user: CurrentUserDep,
     filters: AssetFilter = FilterDepends(AssetFilter),
     pagination_params: Params = Depends(),
 ):
-    project_crud = ProjectCRUD(db)
-    asset_crud = AssetCRUD(db)
+    project_crud = ProjectCRUD()
+    asset_crud = AssetCRUD()
 
     try:
         project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)

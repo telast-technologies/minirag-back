@@ -1,3 +1,5 @@
+import contextvars
+
 from typing import Annotated
 
 from fastapi import Depends
@@ -43,12 +45,16 @@ async def close_db():
     await engine.dispose()
 
 
+db_session_context: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar("db_session_context")
 async def get_db():
-    """
-    Dependency for database session.
-    """
     async with AsyncSessionLocal() as session:
-        yield session
+        # 2. وضع الـ session جوه المتغير السياقي
+        token = db_session_context.set(session)
+        try:
+            yield session
+        finally:
+            # تنظيف المتغير بعد انتهاء الريكويست
+            db_session_context.reset(token)
 
 
 DBSession = Annotated[AsyncSession, Depends(get_db)]

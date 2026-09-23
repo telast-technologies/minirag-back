@@ -13,7 +13,7 @@ from src.config.settings import settings
 from src.knowledge_base.api.v1.routes import router as knowledge_base_router
 from src.projects.api.v1.routes import router as project_router
 from src.users.api.v1.routes import router as user_router
-
+from src.nlp.api.v1.routes import router as nlp_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(user_router)
     app.include_router(project_router)
     app.include_router(knowledge_base_router)
+    app.include_router(nlp_router)
     add_pagination(app)
     return app
 

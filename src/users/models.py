@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from fastapi_storages.integrations.sqlalchemy import FileType
 from sqlalchemy import Column
 from sqlmodel import Field, Relationship, SQLModel

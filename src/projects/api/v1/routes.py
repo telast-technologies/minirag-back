@@ -9,7 +9,7 @@ from src.config.exceptions import InternalServerException, NotFoundException
 from src.config.loggers import Logger
 from src.config.permissions import CurrentUserDep
 from src.config.settings import settings
-from src.projects.api.v1.schemas import CreateProjectSchema, ProjectDetailSchema, UpdateProjectSchema
+from src.projects.api.v1.schemas import ModifyProjectSchema, ProjectDetailSchema
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
 
@@ -24,9 +24,9 @@ async def create_project(
     response: Response,
     db: DBSession,
     user: CurrentUserDep,
-    body: CreateProjectSchema,
+    body: ModifyProjectSchema,
 ):
-    project_crud = ProjectCRUD(db)
+    project_crud = ProjectCRUD()
     data = body.model_dump()
 
     try:
@@ -50,7 +50,7 @@ async def get_projects(
     pagination_params: Params = Depends(),
 ):
     try:
-        project_crud = ProjectCRUD(db)
+        project_crud = ProjectCRUD()
         projects = project_crud.select(
             Project.user_id == user.id,
         )
@@ -65,12 +65,12 @@ async def get_projects(
 async def update_project(
     request: Request,
     response: Response,
+    project_id: UUID,
     db: DBSession,
     user: CurrentUserDep,
-    project_id: UUID,
-    body: UpdateProjectSchema,
+    body: ModifyProjectSchema,
 ):
-    project_crud = ProjectCRUD(db)
+    project_crud = ProjectCRUD()
     data = body.model_dump(exclude_unset=True, exclude_none=True)
 
     try:
@@ -89,3 +89,4 @@ async def update_project(
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to update project")
+

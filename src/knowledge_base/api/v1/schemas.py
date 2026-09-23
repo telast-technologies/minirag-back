@@ -6,6 +6,7 @@ from fastapi import File, UploadFile
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, HttpUrl
 
 from src.knowledge_base.enums import AssetStatus, AssetType
+from src.utils.schemas import FileWithValidation
 
 
 class CreateTextAssetSchema(BaseModel):
@@ -17,7 +18,7 @@ class CreateURlAssetSchema(BaseModel):
 
 
 class CreateFileAssetSchema(BaseModel):
-    content: list[UploadFile]
+    content: list[FileWithValidation]
 
     @classmethod
     def as_form(
