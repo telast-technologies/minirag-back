@@ -16,5 +16,3 @@ async def get_generation_models(
     user: CurrentUserDep,
 ):
     return settings.GENERATION_MODEL_IDS
-
-    

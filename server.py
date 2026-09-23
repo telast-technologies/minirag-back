@@ -11,9 +11,10 @@ from src.config.hashers import hasher
 from src.config.middlewares import MIDDLEWARES
 from src.config.settings import settings
 from src.knowledge_base.api.v1.routes import router as knowledge_base_router
+from src.nlp.api.v1.routes import router as nlp_router
 from src.projects.api.v1.routes import router as project_router
 from src.users.api.v1.routes import router as user_router
-from src.nlp.api.v1.routes import router as nlp_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

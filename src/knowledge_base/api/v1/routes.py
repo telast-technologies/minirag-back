@@ -6,7 +6,7 @@ from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
 
 from src.config.db.session import DBSession
-from src.config.exceptions import InternalServerException, NotFoundException, BadRequestException
+from src.config.exceptions import BadRequestException, InternalServerException, NotFoundException
 from src.config.loggers import Logger
 from src.config.permissions import CurrentUserDep
 from src.config.settings import settings
@@ -19,11 +19,11 @@ from src.knowledge_base.api.v1.schemas import (
 from src.knowledge_base.crud import AssetCRUD
 from src.knowledge_base.filters import AssetFilter
 from src.knowledge_base.models import Asset
+from src.knowledge_base.services.file import FileContentService
+from src.knowledge_base.services.text import TextContentService
+from src.knowledge_base.services.url import UrlContentService
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
-from src.knowledge_base.services.file import FileContentService
-from src.knowledge_base.services.url import UrlContentService
-from src.knowledge_base.services.text import TextContentService
 
 logger = Logger(name=__name__)
 router = APIRouter(prefix="/api/v1/assets", tags=["assets"])

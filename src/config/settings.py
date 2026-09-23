@@ -1,7 +1,7 @@
 import os
+from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from enum import  Enum
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,7 +11,6 @@ from sqlalchemy.engine import URL
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 BUILD_ENV: str = os.getenv("BUILD_ENV", "local")
-
 
 
 class LLMBackend(Enum):
@@ -78,8 +77,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     OPENAI_API_URL: str | None = None
     COHERE_API_KEY: str
-    
-        
+
     @property
     def DATABASE_URL_ASYNC(self) -> str:
         return URL.create(
@@ -104,26 +102,21 @@ class Settings(BaseSettings):
 
     @property
     def GENERATION_MODEL_IDS(self) -> list[str]:
-        return (
-            self.OPENAI_GENERATION_MODEL_IDS + self.QWEN_GENERATION_MODEL_IDS
-        )
+        return self.OPENAI_GENERATION_MODEL_IDS + self.QWEN_GENERATION_MODEL_IDS
 
     @property
     def EMBEDDING_MODEL_IDS(self) -> list[str]:
-        return (
-            self.COHERE_EMBEDDING_MODEL_IDS
-        )
+        return self.COHERE_EMBEDDING_MODEL_IDS
 
     def GENERATION_BACKEND(self, model_id: str) -> str:
         MODEL_MAP = {
             tuple(self.OPENAI_GENERATION_MODEL_IDS + self.QWEN_GENERATION_MODEL_IDS): LLMBackend.OPENAI.value,
-
         }
         for key in MODEL_MAP.keys():
             if model_id in key:
                 return MODEL_MAP[key]
         raise ValueError(f"Model ID {model_id} not found in any backend")
-    
+
     def EMBEDDING_BACKEND(self, model_id: str) -> str:
         MODEL_MAP = {
             tuple(self.COHERE_EMBEDDING_MODEL_IDS): LLMBackend.COHERE.value,
@@ -132,7 +125,6 @@ class Settings(BaseSettings):
             if model_id in key:
                 return MODEL_MAP[key]
         raise ValueError(f"Model ID {model_id} not found in any backend")
-        
 
     def GENERATION_API_KEY(self, backend: str) -> str:
         BACKEND_MAP = {
@@ -153,7 +145,7 @@ class Settings(BaseSettings):
         except KeyError:
             raise ValueError(f"Backend {backend} not found")
 
-        
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

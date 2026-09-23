@@ -2,6 +2,7 @@ from typing import Any, Generic, TypeVar
 
 from sqlalchemy.sql import Select
 from sqlmodel import SQLModel, select
+
 from src.config.db.session import db_session_context
 
 ModelType = TypeVar("ModelType", bound=SQLModel)

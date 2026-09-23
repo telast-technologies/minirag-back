@@ -1,9 +1,11 @@
 from datetime import datetime
 from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.config.settings import settings
 from src.utils.schemas import GenerationModel
+
 
 class ModifyProjectSchema(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)

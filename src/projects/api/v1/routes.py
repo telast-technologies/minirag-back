@@ -89,4 +89,3 @@ async def update_project(
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to update project")
-

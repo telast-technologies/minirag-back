@@ -3,25 +3,19 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, Request
 
+from src.config.db.session import DBSession
 from src.config.exceptions import ForbiddenException, NotFoundException, UnAuthorizedException
 from src.config.settings import settings
 from src.users.crud import UserCRUD
 from src.users.models import User
-from src.config.db.session import DBSession
+
 
 class CurrentUser:
     def __init__(self, required: bool = True):
         self.required = required
 
-    async def __call__(
-        self,
-        request: Request,
-        db: DBSession
-    ) -> User | None:
-
-        token = (
-            request.cookies.get(settings.JWT_COOKIE_NAME)
-        )
+    async def __call__(self, request: Request, db: DBSession) -> User | None:
+        token = request.cookies.get(settings.JWT_COOKIE_NAME)
 
         if not token:
             if not self.required:

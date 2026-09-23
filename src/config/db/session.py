@@ -1,5 +1,4 @@
 import contextvars
-
 from typing import Annotated
 
 from fastapi import Depends
@@ -46,6 +45,8 @@ async def close_db():
 
 
 db_session_context: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar("db_session_context")
+
+
 async def get_db():
     async with AsyncSessionLocal() as session:
         # 2. وضع الـ session جوه المتغير السياقي
