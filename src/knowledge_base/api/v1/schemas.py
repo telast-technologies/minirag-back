@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import File, UploadFile
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, HttpUrl
 
+from src.config.settings import settings
 from src.knowledge_base.enums import AssetStatus, AssetType
 from src.utils.schemas import FileWithValidation
 
@@ -41,3 +42,9 @@ class AssetDetailSchema(BaseModel):
     status: AssetStatus
     created_at: datetime
     updated_at: datetime
+
+
+class ProcessAssetSchema(BaseModel):
+    asset_ids: list[UUID] = Field(default_factory=list)
+    chunk_size: int = Field(default=settings.DEFAULT_CHUNK_SIZE, min_value=1)
+    chunk_overlap: int = Field(default=settings.DEFAULT_CHUNK_OVERLAP, min_value=0)

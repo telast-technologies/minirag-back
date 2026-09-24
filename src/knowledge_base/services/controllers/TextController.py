@@ -4,7 +4,7 @@ from src.knowledge_base.enums import AssetType
 from src.projects.models import Project
 
 
-class UrlContentService:
+class TextController:
     def __init__(self, content: str):
         self.content = content
         self.crud = AssetCRUD()
@@ -16,7 +16,7 @@ class UrlContentService:
             {
                 "project_id": project.id,
                 "name": name,
-                "type": AssetType.URL.value,
+                "type": AssetType.TEXT.value,
                 "asset_metadata": self.extract_metadata(),
                 "content": self.content,
             }

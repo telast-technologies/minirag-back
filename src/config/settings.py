@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     AWS_S3_ENDPOINT_URL: str = Field(alias="R2_ENDPOINT_URL")
     # LLM Configuration
     DEFAULT_CHUNK_SIZE: int = Field(..., description="Default chunk size in characters in bytes")
+    DEFAULT_CHUNK_OVERLAP: int = Field(..., description="Default chunk overlap in characters")
     OPENAI_GENERATION_MODEL_IDS: list[str]
     QWEN_GENERATION_MODEL_IDS: list[str]
     DEFAULT_GENERATION_MODEL_ID: str

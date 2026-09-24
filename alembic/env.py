@@ -5,6 +5,7 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from src.config.settings import settings
+
 from src.config.db.models import metadata
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_ASYNC)

@@ -7,7 +7,7 @@ from src.knowledge_base.enums import AssetType
 from src.projects.models import Project
 
 
-class FileContentService:
+class FileController:
     file_scale: int = 1024 * 1024
 
     def __init__(self, file: UploadFile, *args, **kwargs):

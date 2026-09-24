@@ -18,24 +18,19 @@ class Asset(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
 
     # relationships
     project: "Project" = Relationship(back_populates="assets", sa_relationship_kwargs={"lazy": "joined"})
+    # Added cascade="all, delete-orphan"
+    chunks: list["AssetChunk"] = Relationship(
+        back_populates="asset", sa_relationship_kwargs={"lazy": "joined", "cascade": "all, delete-orphan"}
+    )
 
 
-# class AssetChunk(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
-#     project_id: uuid.UUID = Field(foreign_key="project.id", index=True)
-#     asset_id: uuid.UUID = Field(foreign_key="asset.id", index=True)
-#     text: str
-#     metadata: dict | None = Field(
-#         default=None,
-#         sa_column=Column("metadata", JSONB)
-#     )
-#     order: int
+class AssetChunk(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
+    project_id: uuid.UUID = Field(foreign_key="project.id", index=True)
+    asset_id: uuid.UUID = Field(foreign_key="asset.id", index=True)
+    text: str
+    chunk_metadata: dict | None = Field(default=None, sa_column=Column("chunk_metadata", JSONB))
+    order: int
 
-#     # relationships
-#     project: 'Project' = Relationship(
-#         back_populates="chunks",
-#         sa_relationship_kwargs={"lazy": "joined"}
-#     )
-#     asset: 'Asset' = Relationship(
-#         back_populates="chunks",
-#         sa_relationship_kwargs={"lazy": "joined"}
-#     )
+    # relationships
+    project: "Project" = Relationship(back_populates="chunks", sa_relationship_kwargs={"lazy": "joined"})
+    asset: "Asset" = Relationship(back_populates="chunks", sa_relationship_kwargs={"lazy": "joined"})

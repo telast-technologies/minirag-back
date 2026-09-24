@@ -15,13 +15,15 @@ from src.knowledge_base.api.v1.schemas import (
     CreateFileAssetSchema,
     CreateTextAssetSchema,
     CreateURlAssetSchema,
+    ProcessAssetSchema,
 )
 from src.knowledge_base.crud import AssetCRUD
 from src.knowledge_base.filters import AssetFilter
 from src.knowledge_base.models import Asset
-from src.knowledge_base.services.file import FileContentService
-from src.knowledge_base.services.text import TextContentService
-from src.knowledge_base.services.url import UrlContentService
+from src.knowledge_base.services.controllers.FileController import FileController
+from src.knowledge_base.services.controllers.ProcessController import ProcessController
+from src.knowledge_base.services.controllers.TextController import TextController
+from src.knowledge_base.services.controllers.URLController import URLController
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
 
@@ -48,14 +50,16 @@ async def create_text_assets(
         new_assets = []
         for content in body.content:
             # normalized_name is content without spaces and with underscore
-            text_service = TextContentService(content)
-            asset = text_service.save(project)
+            text_controller = TextController(content)
+            asset = await text_controller.save(project)
             # add text to asset
             new_assets.append(asset)
+        # process assests
+        process_controller = ProcessController(new_assets)
+        processed_assets = await process_controller.process()
         await db.commit()
-        # TODO: chunk the assets content and save the chunks
-        logger.info(f"Created new assets: {new_assets}")
-        return [AssetDetailSchema.model_validate(asset) for asset in new_assets]
+        logger.info(f"Processed {len(processed_assets)} assets")
+        return [AssetDetailSchema.model_validate(asset) for asset in processed_assets]
     except NotFoundException:
         await db.rollback()
         raise
@@ -87,13 +91,15 @@ async def create_url_assets(
         new_assets = []
         for content in body.content:
             # add url to assets
-            url_service = UrlContentService(content=content)
-            asset = url_service.save(project)
+            url_controller = URLController(content=content)
+            asset = await url_controller.save(project)
             new_assets.append(asset)
+        # process assests
+        process_controller = ProcessController(new_assets)
+        processed_assets = await process_controller.process()
         await db.commit()
-        # TODO: chunk the assets content and save the chunks
-        logger.info(f"Created new assets: {new_assets}")
-        return [AssetDetailSchema.model_validate(asset) for asset in new_assets]
+        logger.info(f"Processed {len(processed_assets)} assets")
+        return [AssetDetailSchema.model_validate(asset) for asset in processed_assets]
     except NotFoundException:
         await db.rollback()
         raise
@@ -124,14 +130,16 @@ async def create_file_assets(
         new_assets = []
         for content in body.content:
             # normalized_name is content without spaces and with underscore
-            document_service = FileContentService(file=content)
-            asset = await document_service.save(project)
+            file_controller = FileController(file=content)
+            asset = await file_controller.save(project)
             # create file as asset
             new_assets.append(asset)
+        # process the new assets
+        process_controller = ProcessController(new_assets)
+        processed_assets = await process_controller.process()
         await db.commit()
-        # # TODO: chunk the assets content and save the chunks
-        logger.info(f"Created new assets: {new_assets}")
-        return [AssetDetailSchema.model_validate(asset) for asset in new_assets]
+        logger.info(f"Processed {len(processed_assets)} assets")
+        return [AssetDetailSchema.model_validate(asset) for asset in processed_assets]
     except NotFoundException:
         await db.rollback()
         raise
@@ -172,3 +180,43 @@ async def get_assets(
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to get assets")
+
+
+@router.post(
+    "/{project_id}/process_assets", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED
+)
+async def process_assets(
+    request: Request,
+    response: Response,
+    project_id: UUID,
+    db: DBSession,
+    user: CurrentUserDep,
+    body: ProcessAssetSchema,
+):
+    project_crud = ProjectCRUD()
+    asset_crud = AssetCRUD()
+
+    try:
+        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
+        if not project:
+            raise NotFoundException("Project not found")
+
+        assets = [
+            asset
+            for asset in body.asset_ids
+            if await asset_crud.get(Asset.id == asset.id, Asset.project_id == project_id)
+        ]
+        if not assets:
+            assets = [asset for asset in await asset_crud.list(Asset.project_id == project_id)]
+        process_controller = ProcessController(assets)
+        processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
+        return processed_assets
+    except NotFoundException:
+        await db.rollback()
+        raise
+    except BadRequestException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        raise InternalServerException("Failed to process asset")
