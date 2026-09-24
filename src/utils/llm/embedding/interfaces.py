@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
-class EmbeddingLLMInterface(ABC):
 
+class EmbeddingLLMInterface(ABC):
     @abstractmethod
     def set_model(self, model_id: str, embedding_size: int):
         pass

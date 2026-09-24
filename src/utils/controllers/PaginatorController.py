@@ -1,10 +1,13 @@
-from fastapi_pagination import paginate, Params, Page
-from typing import TypeVar, List, Iterator
+from collections.abc import Iterator
+from typing import List, TypeVar
 
-T = TypeVar('T')
+from fastapi_pagination import Page, Params, paginate
+
+T = TypeVar("T")
+
 
 class Paginator:
-    def __init__(self, items: List[T], page_size: int = 50):
+    def __init__(self, items: list[T], page_size: int = 50):
         self.items = items
         self.page_size = page_size
         # Calculate total pages manually to know when to stop the loop

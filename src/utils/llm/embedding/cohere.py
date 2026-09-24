@@ -1,21 +1,21 @@
-import cohere
 from typing import List, Union
 
-from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
+import cohere
+
 from src.config.loggers import Logger
+from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
 
 logger = Logger(__name__)
 
-class CoHereProvider(EmbeddingLLMInterface):
 
+class CoHereProvider(EmbeddingLLMInterface):
     def __init__(
-        self, 
+        self,
         api_key: str,
         embedding_model_id: str,
         embedding_size: int,
-        default_input_max_characters: int=1000,
+        default_input_max_characters: int = 1000,
     ):
-        
         self.api_key = api_key
         self.embedding_model_id = embedding_model_id
         self.embedding_size = embedding_size
@@ -28,30 +28,29 @@ class CoHereProvider(EmbeddingLLMInterface):
         self.embedding_size = embedding_size
 
     def process_text(self, text: str):
-        return text[:self.default_input_max_characters].strip()
+        return text[: self.default_input_max_characters].strip()
 
-    
-    def embed_text(self, text: Union[str, List[str]], document_type: str = None):
+    def embed_text(self, text: str | list[str], document_type: str = None):
         if not self.client:
             logger.error("CoHere client was not set")
             return None
-        
+
         if isinstance(text, str):
             text = [text]
-        
+
         if not self.embedding_model_id:
             logger.error("Embedding model for CoHere was not set")
             return None
-        
+
         response = self.client.embed(
-            model = self.embedding_model_id,
-            texts = [ self.process_text(t) for t in text ],
-            input_type = document_type.lower(),
-            embedding_types=['float'],
+            model=self.embedding_model_id,
+            texts=[self.process_text(t) for t in text],
+            input_type=document_type.lower(),
+            embedding_types=["float"],
         )
 
         if not response or not response.embeddings or not response.embeddings.float:
             logger.error("Error while embedding text with CoHere")
             return None
-        
+
         return response.embeddings.float
