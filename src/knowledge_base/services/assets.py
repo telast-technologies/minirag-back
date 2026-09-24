@@ -10,7 +10,7 @@ class AssetService:
     def __init__(self, asset: Asset):
         self.asset = asset
 
-    async def update_status(self, status: AssetStatus):
+    async def update_status(self, status: AssetStatus) -> Asset:
         asset_crud = AssetCRUD()
         updated_asset = await asset_crud.update(self.asset, {"status": status})
         logger.info(f"Asset: {updated_asset.id} updated to status: {status}")

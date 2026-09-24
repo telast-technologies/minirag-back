@@ -23,7 +23,7 @@ class ChunckAssetController:
     def __init__(self, asset: Asset):
         self.asset = asset
 
-    def get_loader(self):
+    def get_loader(self) -> UnstructuredURLLoader | WebBaseLoader:
         try:
             if self.asset.type == AssetType.FILE.value:
                 direct_url = S3Storage.get_path(self.asset.content)
@@ -41,7 +41,7 @@ class ChunckAssetController:
             logger.error(f"Unsupported asset type for loader: {self.asset.type}")
             raise ValueError(f"Unsupported asset type for loader: {self.asset.type}")
 
-    def load(self):
+    def load(self) -> list[Document]:
         try:
             # Handle raw TEXT directly (Bypass loaders completely)
             if self.asset.type == AssetType.TEXT.value:
@@ -122,7 +122,7 @@ class ProcessController:
 
     async def process(
         self, chunk_size: int = settings.DEFAULT_CHUNK_SIZE, chunk_overlap: int = settings.DEFAULT_CHUNK_OVERLAP
-    ):
+    ) -> list[Asset]:
         processed_assets = []
         paginator = Paginator(self.assets, 10)
 

@@ -4,6 +4,7 @@ from src.config.hashers import HashTextService
 from src.config.storage import S3Storage
 from src.knowledge_base.crud import AssetCRUD
 from src.knowledge_base.enums import AssetType
+from src.knowledge_base.models import Asset
 from src.projects.models import Project
 
 
@@ -14,7 +15,7 @@ class FileController:
         self.file = file
         self.crud = AssetCRUD()
 
-    async def save(self, project: Project):
+    async def save(self, project: Project) -> Asset:
         hasher = HashTextService()
         name = f"{project.id}_{hasher.hash(self.file.filename)}_{self.file.filename}"
 

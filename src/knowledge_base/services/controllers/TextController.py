@@ -1,6 +1,7 @@
 from src.config.hashers import HashTextService
 from src.knowledge_base.crud import AssetCRUD
 from src.knowledge_base.enums import AssetType
+from src.knowledge_base.models import Asset
 from src.projects.models import Project
 
 
@@ -9,7 +10,7 @@ class TextController:
         self.content = content
         self.crud = AssetCRUD()
 
-    async def save(self, project: Project):
+    async def save(self, project: Project) -> Asset:
         hasher = HashTextService()
         name = hasher.hash(self.content)
         return await self.crud.create(
