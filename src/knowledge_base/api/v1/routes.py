@@ -48,12 +48,7 @@ async def create_text_assets(
         if not project:
             raise NotFoundException("Project not found")
 
-        new_assets = []
-        for content in body.content:
-            # save asset with normalized_name is content without spaces and with underscore
-            text_controller = TextController(content)
-            asset = await text_controller.save(project)
-            new_assets.append(asset)
+        new_assets = [await TextController(content=content).save(project) for content in body.content]
         # process the new assets
         process_controller = ProcessController(new_assets)
         processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
@@ -88,12 +83,7 @@ async def create_url_assets(
         if not project:
             raise NotFoundException("Project not found")
 
-        new_assets = []
-        for content in body.content:
-            # save asset with normalized_name is content without spaces and with underscore
-            url_controller = URLController(content=content)
-            asset = await url_controller.save(project)
-            new_assets.append(asset)
+        new_assets = [await URLController(content=content).save(project) for content in body.content]
         # process assests
         process_controller = ProcessController(new_assets)
         processed_assets = await process_controller.process()
@@ -118,21 +108,16 @@ async def create_file_assets(
     response: Response,
     project_id: UUID,
     db: DBSession,
-    user: CurrentUserDep,
+    # user: CurrentUserDep,
     body: CreateFileAssetSchema = Depends(CreateFileAssetSchema.as_form),
 ):
     project_crud = ProjectCRUD()
     try:
-        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
+        project = await project_crud.get(Project.id == project_id)
         if not project:
             raise NotFoundException("Project not found")
 
-        new_assets = []
-        for content in body.content:
-            # save asset with normalized_name is content without spaces and with underscore
-            file_controller = FileController(file=content)
-            asset = await file_controller.save(project)
-            new_assets.append(asset)
+        new_assets = [await FileController(file=content).save(project) for content in body.content]
         # process the new assets
         process_controller = ProcessController(new_assets)
         processed_assets = await process_controller.process()
@@ -172,7 +157,7 @@ async def get_assets(
         query = filters.filter(query)
         query = filters.sort(query)
 
-        return await apaginate(db, query, pagination_params)
+        return await apaginate(db, query, pagination_params, subquery_count=True, unwrap_mode="auto")
     except NotFoundException:
         await db.rollback()
         raise

@@ -63,8 +63,7 @@ class BucketS3Storage(BaseS3Storage):
         key = self.get_name(name)
 
         try:
-            s3_client = self._s3.meta.client if hasattr(self._s3, "meta") else self._s3
-            response = s3_client.get_object(
+            response = self._s3.get_object(
                 Bucket=self.AWS_S3_BUCKET_NAME,
                 Key=key,
             )
