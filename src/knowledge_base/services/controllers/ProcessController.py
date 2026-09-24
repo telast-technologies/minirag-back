@@ -1,5 +1,3 @@
-from typing import List
-
 from langchain_community.document_loaders import UnstructuredURLLoader, WebBaseLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -24,12 +22,6 @@ class ChunckAssetController:
 
     def __init__(self, asset: Asset):
         self.asset = asset
-        self.base_metadata = {
-            "asset_id": str(self.asset.id),
-            "project_id": str(self.asset.project_id),
-            "asset_name": self.asset.name,
-            **(self.asset.asset_metadata or {}),
-        }
 
     def get_loader(self):
         try:
@@ -55,7 +47,14 @@ class ChunckAssetController:
             if self.asset.type == AssetType.TEXT.value:
                 # Directly instantiate the Document
                 doc = Document(
-                    page_content=self.asset.content, metadata={**self.base_metadata, "source": "raw_text_input"}
+                    page_content=self.asset.content,
+                    metadata={
+                        "asset_id": str(self.asset.id),
+                        "project_id": str(self.asset.project_id),
+                        "asset_name": self.asset.name,
+                        **(self.asset.asset_metadata or {}),
+                        "source": "raw_text_input",
+                    },
                 )
                 logger.info(f"Loaded 1 document directly from text asset {self.asset.name}")
                 return [doc]
@@ -65,7 +64,15 @@ class ChunckAssetController:
             docs = loader.load()
 
             for doc in docs:
-                doc.metadata.update({"source": self.asset.content, **self.base_metadata})
+                doc.metadata.update(
+                    {
+                        "asset_id": str(self.asset.id),
+                        "project_id": str(self.asset.project_id),
+                        "asset_name": self.asset.name,
+                        **(self.asset.asset_metadata or {}),
+                        "source": self.asset.content,
+                    }
+                )
 
             logger.info(f"Loaded {len(docs)} documents from asset {self.asset.name}")
             return docs
@@ -121,10 +128,11 @@ class ProcessController:
 
         for page in paginator.get_page():
             for asset in page.items:
-                chunck_controller = ChunckAssetController(asset)
-                chunks = await chunck_controller.create_chunks(chunk_size, chunk_overlap)
-                logger.info(f"Created {len(chunks)} chunks for asset {asset.name}")
-                processed_assets.append(asset)
-                # TODO: embed the chunks
+                if asset:
+                    chunck_controller = ChunckAssetController(asset)
+                    chunks = await chunck_controller.create_chunks(chunk_size, chunk_overlap)
+                    logger.info(f"Created {len(chunks)} chunks for asset {asset.name}")
+                    processed_assets.append(asset)
+                    # TODO: embed the chunks
 
         return processed_assets

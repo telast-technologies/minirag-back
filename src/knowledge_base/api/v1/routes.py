@@ -18,6 +18,7 @@ from src.knowledge_base.api.v1.schemas import (
     ProcessAssetSchema,
 )
 from src.knowledge_base.crud import AssetCRUD
+from src.knowledge_base.enums import AssetStatus
 from src.knowledge_base.filters import AssetFilter
 from src.knowledge_base.models import Asset
 from src.knowledge_base.services.controllers.FileController import FileController
@@ -49,17 +50,16 @@ async def create_text_assets(
 
         new_assets = []
         for content in body.content:
-            # normalized_name is content without spaces and with underscore
+            # save asset with normalized_name is content without spaces and with underscore
             text_controller = TextController(content)
             asset = await text_controller.save(project)
-            # add text to asset
             new_assets.append(asset)
-        # process assests
+        # process the new assets
         process_controller = ProcessController(new_assets)
-        processed_assets = await process_controller.process()
+        processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
         await db.commit()
         logger.info(f"Processed {len(processed_assets)} assets")
-        return [AssetDetailSchema.model_validate(asset) for asset in processed_assets]
+        return processed_assets
     except NotFoundException:
         await db.rollback()
         raise
@@ -90,7 +90,7 @@ async def create_url_assets(
 
         new_assets = []
         for content in body.content:
-            # add url to assets
+            # save asset with normalized_name is content without spaces and with underscore
             url_controller = URLController(content=content)
             asset = await url_controller.save(project)
             new_assets.append(asset)
@@ -99,7 +99,7 @@ async def create_url_assets(
         processed_assets = await process_controller.process()
         await db.commit()
         logger.info(f"Processed {len(processed_assets)} assets")
-        return [AssetDetailSchema.model_validate(asset) for asset in processed_assets]
+        return processed_assets
     except NotFoundException:
         await db.rollback()
         raise
@@ -129,17 +129,16 @@ async def create_file_assets(
 
         new_assets = []
         for content in body.content:
-            # normalized_name is content without spaces and with underscore
+            # save asset with normalized_name is content without spaces and with underscore
             file_controller = FileController(file=content)
             asset = await file_controller.save(project)
-            # create file as asset
             new_assets.append(asset)
         # process the new assets
         process_controller = ProcessController(new_assets)
         processed_assets = await process_controller.process()
         await db.commit()
         logger.info(f"Processed {len(processed_assets)} assets")
-        return [AssetDetailSchema.model_validate(asset) for asset in processed_assets]
+        return processed_assets
     except NotFoundException:
         await db.rollback()
         raise
@@ -197,19 +196,23 @@ async def process_assets(
     asset_crud = AssetCRUD()
 
     try:
-        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
+        project = await project_crud.get(
+            Project.id == project_id,
+            Project.user_id == user.id,
+        )
         if not project:
             raise NotFoundException("Project not found")
 
         assets = [
-            asset
-            for asset in body.asset_ids
-            if await asset_crud.get(Asset.id == asset.id, Asset.project_id == project_id)
+            await asset_crud.get(
+                Asset.id == asset_id, Asset.project_id == project_id, Asset.status == AssetStatus.PENDING
+            )
+            for asset_id in body.asset_ids
         ]
-        if not assets:
-            assets = [asset for asset in await asset_crud.list(Asset.project_id == project_id)]
+
         process_controller = ProcessController(assets)
         processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
+        await db.commit()
         return processed_assets
     except NotFoundException:
         await db.rollback()

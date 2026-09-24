@@ -1,5 +1,3 @@
-from typing import List, Union
-
 import cohere
 
 from src.config.loggers import Logger

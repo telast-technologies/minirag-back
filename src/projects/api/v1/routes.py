@@ -34,7 +34,7 @@ async def create_project(
         await db.commit()
         await db.refresh(new_project)
         logger.info(f"Created new project: {new_project.name}")
-        return ProjectDetailSchema.model_validate(new_project)
+        return new_project
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to create project")
@@ -82,7 +82,7 @@ async def update_project(
         await db.commit()
         await db.refresh(updated_project)
         logger.info(f"Updated project: {updated_project.name}")
-        return ProjectDetailSchema.model_validate(updated_project)
+        return updated_project
     except NotFoundException:
         await db.rollback()
         raise

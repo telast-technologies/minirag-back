@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import List, TypeVar
+from typing import TypeVar
 
 from fastapi_pagination import Page, Params, paginate
 

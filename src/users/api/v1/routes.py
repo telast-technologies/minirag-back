@@ -49,7 +49,7 @@ async def register_user(
         await db.commit()
         await db.refresh(new_user)
         logger.info(f"Registered new user: {new_user.username}")
-        return UserDetailSchema.model_validate(new_user)
+        return new_user
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to register user")
@@ -75,12 +75,7 @@ async def login_user(
     logger.info(f"User logged in: {user.username}")
 
     user_data = UserDetailSchema.model_validate(user)
-    token_data = TokenSchema(**token_manager.get_access_token())
-
-    return UserDetailWithAccessTokenSchema(
-        **user_data.model_dump(),
-        **token_data.model_dump(),
-    )
+    return {**user_data.model_dump(), **token_manager.get_access_token()}
 
 
 @router.post("/refresh_token", response_model=TokenSchema)
@@ -95,7 +90,7 @@ async def refresh_token(
     token_manager.set_access_token_cookie(response)
 
     logger.info(f"Refreshed access token for user: {user.username}")
-    return TokenSchema(**token_manager.get_access_token())
+    return token_manager.get_access_token()
 
 
 @router.post("/logout", response_model=dict)
@@ -118,7 +113,7 @@ async def get_profile(
     user: CurrentUserDep,
 ):
     await db.refresh(user)
-    return UserDetailSchema.model_validate(user)
+    return user
 
 
 @router.patch("/profile", response_model=UserDetailSchema)
@@ -139,7 +134,7 @@ async def update_profile(
     await db.commit()
 
     logger.info(f"Updated profile for user: {updated_user.username}")
-    return UserDetailSchema.model_validate(updated_user)
+    return updated_user
 
 
 @router.delete("/profile", response_model=UserDetailSchema, status_code=status.HTTP_200_OK)
@@ -154,7 +149,7 @@ async def delete_profile(
     await db.commit()
 
     logger.info(f"Deleted user account: {user.username}")
-    return UserDetailSchema.model_validate(deleted_user)
+    return deleted_user
 
 
 @router.patch("/request_username", response_model=UserDetailSchema)
@@ -175,7 +170,7 @@ async def request_username_change(
     await db.commit()
 
     logger.info(f"Username changed: {user.username} -> {body.username}")
-    return UserDetailSchema.model_validate(updated_user)
+    return updated_user
 
 
 @router.patch("/change_password", response_model=UserDetailSchema)
@@ -199,4 +194,4 @@ async def change_password(
     await db.commit()
 
     logger.info(f"User changed password: {user.username}")
-    return UserDetailSchema.model_validate(updated_user)
+    return updated_user

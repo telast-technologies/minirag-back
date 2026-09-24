@@ -1,5 +1,3 @@
-from typing import List, Union
-
 from openai import OpenAI
 
 from src.config.loggers import Logger
