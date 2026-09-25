@@ -18,6 +18,11 @@ class LLMBackend(Enum):
     COHERE = "COHERE"
 
 
+class VectorDBBackend(Enum):
+    PGVECTOR = "PGVECTOR"
+    QDRANT = "QDRANT"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=f"{BASE_DIR}/docker/.env",
@@ -75,6 +80,11 @@ class Settings(BaseSettings):
     DEFAULT_EMBEDDING_MODEL_ID: str
     EMBEDDING_SIZE: int = Field(..., description="Embedding size in dimensions")
 
+    VECTOR_DB_BACKEND: str
+    VECTOR_DB_DISTANCE_METHOD: str
+    VECTOR_DB_INDEX_THRESHOLD: int
+    VECTOR_DB_DEFAULT_SIZE: int
+
     OPENAI_API_KEY: str
     OPENAI_API_URL: str | None = None
     COHERE_API_KEY: str
@@ -110,39 +120,39 @@ class Settings(BaseSettings):
         return self.COHERE_EMBEDDING_MODEL_IDS
 
     def GENERATION_BACKEND(self, model_id: str) -> str:
-        MODEL_MAP = {
+        BACKEND_MAP = {
             tuple(self.OPENAI_GENERATION_MODEL_IDS + self.QWEN_GENERATION_MODEL_IDS): LLMBackend.OPENAI.value,
         }
-        for key in MODEL_MAP.keys():
+        for key in BACKEND_MAP.keys():
             if model_id in key:
-                return MODEL_MAP[key]
+                return BACKEND_MAP[key]
         raise ValueError(f"Model ID {model_id} not found in any backend")
 
     def EMBEDDING_BACKEND(self, model_id: str) -> str:
-        MODEL_MAP = {
+        BACKEND_MAP = {
             tuple(self.COHERE_EMBEDDING_MODEL_IDS): LLMBackend.COHERE.value,
         }
-        for key in MODEL_MAP.keys():
+        for key in BACKEND_MAP.keys():
             if model_id in key:
-                return MODEL_MAP[key]
+                return BACKEND_MAP[key]
         raise ValueError(f"Model ID {model_id} not found in any backend")
 
     def GENERATION_API_KEY(self, backend: str) -> str:
-        BACKEND_MAP = {
+        APIKEY_MAP = {
             LLMBackend.OPENAI.value: self.OPENAI_API_KEY,
             LLMBackend.COHERE.value: self.COHERE_API_KEY,
         }
         try:
-            return BACKEND_MAP[backend]
+            return APIKEY_MAP[backend]
         except KeyError:
             raise ValueError(f"Backend {backend} not found")
 
     def EMBEDDING_API_KEY(self, backend: str) -> str:
-        BACKEND_MAP = {
+        APIKEY_MAP = {
             LLMBackend.COHERE.value: self.COHERE_API_KEY,
         }
         try:
-            return BACKEND_MAP[backend]
+            return APIKEY_MAP[backend]
         except KeyError:
             raise ValueError(f"Backend {backend} not found")
 

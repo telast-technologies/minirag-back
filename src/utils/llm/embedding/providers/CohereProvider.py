@@ -1,12 +1,22 @@
 import cohere
 
 from src.config.loggers import Logger
+from src.config.settings import LLMBackend
 from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
+from src.utils.llm.embedding.enums import EmbeddingDocumentType
 
 logger = Logger(__name__)
 
 
-class CoHereProvider(EmbeddingLLMInterface):
+class CohereEmbeddingProvider(EmbeddingLLMInterface):
+    name: str = LLMBackend.COHERE.value
+
+    INPUT_TYPE = {
+        EmbeddingDocumentType.DOCUMENT.value: "search_document",
+        EmbeddingDocumentType.QUERY.value: "search_query",
+    }
+
+
     def __init__(
         self,
         api_key: str,
@@ -43,7 +53,7 @@ class CoHereProvider(EmbeddingLLMInterface):
         response = self.client.embed(
             model=self.embedding_model_id,
             texts=[self.process_text(t) for t in text],
-            input_type=document_type.lower(),
+            input_type=self.INPUT_TYPE[document_type],
             embedding_types=["float"],
         )
 

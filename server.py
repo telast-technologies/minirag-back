@@ -6,21 +6,47 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from src.config.db.session import close_db, init_db
+from src.config.db.session import close_db, close_vectordb, init_db, init_vectordb
 from src.config.hashers import hasher
 from src.config.middlewares import MIDDLEWARES
 from src.config.settings import settings
 from src.knowledge_base.api.v1.routes import router as knowledge_base_router
 from src.nlp.api.v1.routes import router as nlp_router
+from src.nlp.services.controllers import EmbeddingController, VectorDBController
 from src.projects.api.v1.routes import router as project_router
 from src.users.api.v1.routes import router as user_router
+from src.utils.llm.embedding.factory import EmbeddingLLMProviderFactory
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    # initialize db
+    db_session = await init_db()
+    # initialize vectordb provider to app
+    vectordb_session = await init_vectordb()
+    vectordb = VectorDBController(vectordb_session)
+    # initialize embedding provider to app
+    embedding_model_id = settings.DEFAULT_EMBEDDING_MODEL_ID
+    embedding_backend = settings.EMBEDDING_BACKEND(embedding_model_id)
+    embedding_api_key = settings.EMBEDDING_API_KEY(embedding_backend)
+    embedding_client = EmbeddingLLMProviderFactory(embedding_backend).create(
+        {
+            "api_key": embedding_api_key,
+            "embedding_model_id": embedding_model_id,
+            "embedding_size": settings.EMBEDDING_SIZE,
+            "default_input_max_characters": settings.DAFAULT_INPUT_MAX_CHARACTERS,
+        }
+    )
+    embedder = EmbeddingController(embedding_client)
+    # assign provider to fastapi app
+    app.db_session = db_session
+    app.embedder = embedder
+    app.vectordb = vectordb
+
     yield
+
     await close_db()
+    await close_vectordb()
 
 
 def create_app() -> FastAPI:

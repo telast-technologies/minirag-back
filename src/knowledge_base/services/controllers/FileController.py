@@ -1,6 +1,6 @@
 from fastapi import UploadFile
 
-from src.config.hashers import HashTextService
+from src.config.hashers import hash_text_service
 from src.config.storage import S3Storage
 from src.knowledge_base.crud import AssetCRUD
 from src.knowledge_base.enums import AssetType
@@ -16,8 +16,7 @@ class FileController:
         self.crud = AssetCRUD()
 
     async def save(self, project: Project) -> Asset:
-        hasher = HashTextService()
-        name = f"{project.id}_{hasher.hash(self.file.filename)}_{self.file.filename}"
+        name = f"{project.id}_{hash_text_service.hash(self.file.filename)}_{self.file.filename}"
 
         storage_key = S3Storage.write(self.file.file, name)
 

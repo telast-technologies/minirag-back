@@ -25,6 +25,7 @@ from src.knowledge_base.services.controllers.FileController import FileControlle
 from src.knowledge_base.services.controllers.ProcessController import ProcessController
 from src.knowledge_base.services.controllers.TextController import TextController
 from src.knowledge_base.services.controllers.URLController import URLController
+from src.nlp.services.controllers import NLPController
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
 
@@ -51,8 +52,14 @@ async def create_text_assets(
         new_assets = [await TextController(content=content).save(project) for content in body.content]
         # process the new assets
         process_controller = ProcessController(new_assets)
-        processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
+        processed_assets = await process_controller.process()
         await db.commit()
+        # inialize nlp controller
+        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        # embed and push into vectordb in one step
+        await nlp_controller.index_and_push_into_vectordb(processed_assets)
+        await db.commit()
+
         logger.info(f"Processed {len(processed_assets)} assets")
         return processed_assets
     except NotFoundException:
@@ -88,6 +95,12 @@ async def create_url_assets(
         process_controller = ProcessController(new_assets)
         processed_assets = await process_controller.process()
         await db.commit()
+        # inialize nlp controller
+        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        # embed and push into vectordb in one step
+        await nlp_controller.index_and_push_into_vectordb(processed_assets)
+        await db.commit()
+
         logger.info(f"Processed {len(processed_assets)} assets")
         return processed_assets
     except NotFoundException:
@@ -122,6 +135,12 @@ async def create_file_assets(
         process_controller = ProcessController(new_assets)
         processed_assets = await process_controller.process()
         await db.commit()
+        # inialize nlp controller
+        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        # embed and push into vectordb in one step
+        await nlp_controller.index_and_push_into_vectordb(processed_assets)
+        await db.commit()
+
         logger.info(f"Processed {len(processed_assets)} assets")
         return processed_assets
     except NotFoundException:
@@ -198,6 +217,12 @@ async def process_assets(
         process_controller = ProcessController(assets)
         processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
         await db.commit()
+        # inialize nlp controller
+        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        # embed and push into vectordb in one step
+        await nlp_controller.index_and_push_into_vectordb(processed_assets)
+        await db.commit()
+
         return processed_assets
     except NotFoundException:
         await db.rollback()

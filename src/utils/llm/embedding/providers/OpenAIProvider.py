@@ -1,12 +1,22 @@
 from openai import OpenAI
 
 from src.config.loggers import Logger
+from src.config.settings import LLMBackend
 from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
+from src.utils.llm.embedding.enums import EmbeddingDocumentType
+
 
 logger = Logger(__name__)
 
 
 class OpenAIEmbeddingProvider(EmbeddingLLMInterface):
+    name: str = LLMBackend.OPENAI.value
+    INPUT_TYPE = {
+        EmbeddingDocumentType.DOCUMENT.value: "document",
+        EmbeddingDocumentType.QUERY.value: "query",
+    }
+
+
     def __init__(
         self,
         api_key: str,
@@ -33,7 +43,7 @@ class OpenAIEmbeddingProvider(EmbeddingLLMInterface):
     def process_text(self, text: str):
         return text[: self.default_input_max_characters].strip()
 
-    def embed_text(self, text: str | list[str], document_type: str = None):
+    def embed_text(self, text: str | list[str], document_type: str):
         if not self.client:
             logger.error("OpenAI client was not set")
             return None
@@ -48,6 +58,7 @@ class OpenAIEmbeddingProvider(EmbeddingLLMInterface):
         response = self.client.embeddings.create(
             model=self.embedding_model_id,
             input=self.process_text(text),
+            input_type=self.INPUT_TYPE[document_type]
         )
 
         if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:

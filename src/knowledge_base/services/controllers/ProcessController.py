@@ -142,6 +142,4 @@ class ProcessController:
                     chunks = await chunck_controller.create_chunks(chunk_size, chunk_overlap)
                     logger.info(f"Created {len(chunks)} chunks for asset {asset.name}")
                     processed_assets.append(asset)
-                    # TODO: embed the chunks
-
         return processed_assets
