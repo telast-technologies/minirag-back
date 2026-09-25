@@ -1,31 +1,27 @@
-import logging
-from typing import List
-from qdrant_client import models, QdrantClient
+from qdrant_client import QdrantClient, models
 
-from src.config.settings import settings
 from src.config.loggers import Logger
-from src.utils.vectordb.VectorDBInterface import VectorDBInterface
+from src.config.settings import settings
 from src.utils.vectordb.enums import DistanceMethod
 from src.utils.vectordb.schemas import RetrievedDocument
-
+from src.utils.vectordb.VectorDBInterface import VectorDBInterface
 
 logger = Logger(__name__)
 
+
 class QDrantProvider(VectorDBInterface):
-    
     DISTANCE_METHOD = {
         DistanceMethod.COSINE.value: models.Distance.COSINE,
         DistanceMethod.DOT.value: models.Distance.DOT,
     }
 
     def __init__(
-        self, 
-        db_client: str, 
-        distance_method: str = settings.VECTOR_DB_DISTANCE_METHOD, 
-        default_vector_size: int = settings.VECTOR_DB_DEFAULT_SIZE, 
-        index_threshold: int=settings.VECTOR_DB_INDEX_THRESHOLD
+        self,
+        db_client: str,
+        distance_method: str = settings.VECTOR_DB_DISTANCE_METHOD,
+        default_vector_size: int = settings.VECTOR_DB_DEFAULT_SIZE,
+        index_threshold: int = settings.VECTOR_DB_INDEX_THRESHOLD,
     ):
-
         self.client = None
         self.db_client = db_client
         self.default_vector_size = default_vector_size
@@ -40,76 +36,58 @@ class QDrantProvider(VectorDBInterface):
 
     async def is_collection_existed(self, collection_name: str) -> bool:
         return self.client.collection_exists(collection_name=collection_name)
-    
-    async def list_all_collections(self) -> List:
+
+    async def list_all_collections(self) -> list:
         return self.client.get_collections()
-    
+
     def get_collection_info(self, collection_name: str) -> dict:
         return self.client.get_collection(collection_name=collection_name)
-    
+
     async def delete_collection(self, collection_name: str):
         if self.is_collection_existed(collection_name):
             logger.info(f"Deleting collection: {collection_name}")
             return self.client.delete_collection(collection_name=collection_name)
-        
+
     async def create_collection(self, collection_name: str, embedding_size: int):
-        
         if not self.is_collection_existed(collection_name):
             logger.info(f"Creating new Qdrant collection: {collection_name}")
-            
+
             _ = self.client.create_collection(
                 collection_name=collection_name,
-                vectors_config=models.VectorParams(
-                    size=embedding_size,
-                    distance=self.distance_method
-                )
+                vectors_config=models.VectorParams(size=embedding_size, distance=self.distance_method),
             )
 
             return True
-        
+
         return False
-    
+
     async def insert_one(
-        self, 
-        collection_name: str, 
-        text: str, vector: list, 
-        metadata: dict = None, 
-        record_id: str = None
+        self, collection_name: str, text: str, vector: list, metadata: dict = None, record_id: str = None
     ):
-        
         if not self.is_collection_existed(collection_name):
             logger.error(f"Can not insert new record to non-existed collection: {collection_name}")
             return False
-        
+
         try:
             _ = self.client.upload_records(
                 collection_name=collection_name,
-                records=[
-                    models.Record(
-                        id=[record_id],
-                        vector=vector,
-                        payload={
-                            "text": text, "metadata": metadata
-                        }
-                    )
-                ]
+                records=[models.Record(id=[record_id], vector=vector, payload={"text": text, "metadata": metadata})],
             )
         except Exception as e:
             logger.error(f"Error while inserting batch: {e}")
             return False
 
         return True
-    
+
     async def insert_many(
-        self, 
-        collection_name: str, 
-        texts: list, 
-        vectors: list, 
-        metadata: list = None, 
-        record_ids: list = None, 
-        batch_size: int = 50
+        self,
+        collection_name: str,
+        texts: list,
+        vectors: list,
+        metadata: list = None,
+        record_ids: list = None,
+        batch_size: int = 50,
     ):
-        
         if metadata is None:
             metadata = [None] * len(texts)
 
@@ -128,11 +106,8 @@ class QDrantProvider(VectorDBInterface):
                 models.Record(
                     id=batch_record_ids[x],
                     vector=batch_vectors[x],
-                    payload={
-                        "text": batch_texts[x], "metadata": batch_metadata[x]
-                    }
+                    payload={"text": batch_texts[x], "metadata": batch_metadata[x]},
                 )
-
                 for x in range(len(batch_texts))
             ]
 
@@ -146,20 +121,11 @@ class QDrantProvider(VectorDBInterface):
                 return False
 
         return True
-        
-    async def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
 
-        results = self.client.search(
-            collection_name=collection_name,
-            query_vector=vector,
-            limit=limit
-        )
+    async def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
+        results = self.client.search(collection_name=collection_name, query_vector=vector, limit=limit)
 
         if not results or len(results) == 0:
             return None
-        
-        return [
-            RetrievedDocument(score=result.score, text=result.payload["text"])
-            for result in results
-        ]
 
+        return [RetrievedDocument(score=result.score, text=result.payload["text"]) for result in results]

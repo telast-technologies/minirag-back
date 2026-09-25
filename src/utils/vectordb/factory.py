@@ -16,5 +16,3 @@ class VectorDBProviderFactory:
             return self.VECTORDB_PROVIDER_MAP[self.backend](**config)
         except KeyError:
             raise ValueError(f"Invalid VectorDB backend: {self.backend}")
-            
-        

@@ -2,8 +2,8 @@ import cohere
 
 from src.config.loggers import Logger
 from src.config.settings import LLMBackend
-from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
 from src.utils.llm.embedding.enums import EmbeddingDocumentType
+from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
 
 logger = Logger(__name__)
 
@@ -15,7 +15,6 @@ class CohereEmbeddingProvider(EmbeddingLLMInterface):
         EmbeddingDocumentType.DOCUMENT.value: "search_document",
         EmbeddingDocumentType.QUERY.value: "search_query",
     }
-
 
     def __init__(
         self,

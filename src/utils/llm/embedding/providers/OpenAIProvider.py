@@ -2,9 +2,8 @@ from openai import OpenAI
 
 from src.config.loggers import Logger
 from src.config.settings import LLMBackend
-from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
 from src.utils.llm.embedding.enums import EmbeddingDocumentType
-
+from src.utils.llm.embedding.interfaces import EmbeddingLLMInterface
 
 logger = Logger(__name__)
 
@@ -15,7 +14,6 @@ class OpenAIEmbeddingProvider(EmbeddingLLMInterface):
         EmbeddingDocumentType.DOCUMENT.value: "document",
         EmbeddingDocumentType.QUERY.value: "query",
     }
-
 
     def __init__(
         self,
@@ -56,9 +54,7 @@ class OpenAIEmbeddingProvider(EmbeddingLLMInterface):
             return None
 
         response = self.client.embeddings.create(
-            model=self.embedding_model_id,
-            input=self.process_text(text),
-            input_type=self.INPUT_TYPE[document_type]
+            model=self.embedding_model_id, input=self.process_text(text), input_type=self.INPUT_TYPE[document_type]
         )
 
         if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:

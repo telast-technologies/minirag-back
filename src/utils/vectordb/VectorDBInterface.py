@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List
 
 from src.utils.vectordb.schemas import RetrievedDocument
 
- 
-class VectorDBInterface(ABC):
 
+class VectorDBInterface(ABC):
     @abstractmethod
     def connect(self):
         pass
@@ -19,7 +17,7 @@ class VectorDBInterface(ABC):
         pass
 
     @abstractmethod
-    def list_all_collections(self) -> List:
+    def list_all_collections(self) -> list:
         pass
 
     @abstractmethod
@@ -40,17 +38,16 @@ class VectorDBInterface(ABC):
 
     @abstractmethod
     def insert_many(
-        self, 
-        collection_name: str, 
-        texts: list, 
-        vectors: list, 
-        metadata: list = None, 
-        record_ids: list = None, 
-        batch_size: int = 50
+        self,
+        collection_name: str,
+        texts: list,
+        vectors: list,
+        metadata: list = None,
+        record_ids: list = None,
+        batch_size: int = 50,
     ):
         pass
 
     @abstractmethod
-    def search_by_vector(self, collection_name: str, vector: list, limit: int) -> List[RetrievedDocument]:
+    def search_by_vector(self, collection_name: str, vector: list, limit: int) -> list[RetrievedDocument]:
         pass
-    
