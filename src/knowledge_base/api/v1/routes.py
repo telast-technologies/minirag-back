@@ -56,7 +56,7 @@ async def create_text_assets(
         await db.commit()
         # inialize nlp controller
         nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
-        # embed and push into vectordb in one step
+        # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
 
@@ -97,7 +97,7 @@ async def create_url_assets(
         await db.commit()
         # inialize nlp controller
         nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
-        # embed and push into vectordb in one step
+        # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
 
@@ -137,7 +137,7 @@ async def create_file_assets(
         await db.commit()
         # inialize nlp controller
         nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
-        # embed and push into vectordb in one step
+        # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
 
@@ -219,7 +219,7 @@ async def process_assets(
         await db.commit()
         # inialize nlp controller
         nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
-        # embed and push into vectordb in one step
+        # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
 

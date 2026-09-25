@@ -17,10 +17,10 @@ class Asset(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     status: AssetStatus = Field(default=AssetStatus.PENDING)
 
     # relationships
-    project: "Project" = Relationship(back_populates="assets", sa_relationship_kwargs={"lazy": "joined"})
+    project: "Project" = Relationship(back_populates="assets", sa_relationship_kwargs={"lazy": "selectin"})
     # Added cascade="all, delete-orphan"
     chunks: list["AssetChunk"] = Relationship(
-        back_populates="asset", sa_relationship_kwargs={"lazy": "joined", "cascade": "all, delete-orphan"}
+        back_populates="asset", sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"}
     )
 
 
@@ -32,5 +32,5 @@ class AssetChunk(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     order: int
 
     # relationships
-    project: "Project" = Relationship(back_populates="chunks", sa_relationship_kwargs={"lazy": "joined"})
-    asset: "Asset" = Relationship(back_populates="chunks", sa_relationship_kwargs={"lazy": "joined"})
+    project: "Project" = Relationship(back_populates="chunks", sa_relationship_kwargs={"lazy": "selectin"})
+    asset: "Asset" = Relationship(back_populates="chunks", sa_relationship_kwargs={"lazy": "selectin"})

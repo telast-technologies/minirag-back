@@ -1,6 +1,9 @@
 from typing import Any
 from uuid import UUID
 
+from src.knowledge_base.enums import AssetStatus
+from src.knowledge_base.crud import AssetCRUD
+from src.knowledge_base.services.assets import AssetService
 from src.knowledge_base.models import Asset
 from src.nlp.services.controllers.EmbeddingController import EmbeddingController
 from src.nlp.services.controllers.VectorDBController import VectorDBController
@@ -31,8 +34,11 @@ class NLPController:
             embedding_size=self.embedding_size,
         )
         # step2: insert into vector db
-        for asset, embedding in embeddings.items():
-            asset_ids = [asset] * len(embedding["chunk_ids"])
+        asset_curd = AssetCRUD()
+        for asset_id, embedding in embeddings.items():
+            asset = await asset_curd.get(Asset.id == asset_id)
+            asset_service = AssetService(asset)
+            asset_ids = [asset_id] * len(embedding["chunk_ids"])
             _ = await self.vectordb.insert_many(
                 collection_name=self.collection_name,
                 texts=embedding["texts"],
@@ -41,6 +47,7 @@ class NLPController:
                 chunk_ids=embedding["chunk_ids"],
                 asset_ids=asset_ids,
             )
+            await asset_service.update_status(AssetStatus.INDEXED)
 
     async def index_and_push_into_vectordb(self, assets: list[Asset]) -> list[UUID]:
         # step1: get text embedding vector

@@ -71,3 +71,27 @@ async def index_assets(
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to process asset")
+
+
+
+@router.get("/{project_id}/index_info", response_model=dict)
+async def get_project_index_info(
+    request: Request, 
+    project_id: UUID,
+    db:DBSession,
+    user:CurrentUserDep,
+):
+    try:
+        project_crud = ProjectCRUD()
+        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
+        if not project:
+            raise NotFoundException("Project not found")
+
+        collection_info = await request.app.vectordb.get_collection_info(project)
+        return collection_info
+    except NotFoundException:
+        raise
+    except BadRequestException:
+        raise
+    except Exception:
+        raise InternalServerException("Failed to get collection info")

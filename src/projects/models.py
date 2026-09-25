@@ -16,11 +16,11 @@ class Project(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
         sa_column=Column(String, nullable=False, server_default=settings.DEFAULT_GENERATION_MODEL_ID),
     )
     # relationships
-    user: "User" = Relationship(back_populates="projects", sa_relationship_kwargs={"lazy": "joined"})
+    user: "User" = Relationship(back_populates="projects", sa_relationship_kwargs={"lazy": "selectin"})
     # Added cascade="all, delete-orphan" to both child relationships
     assets: list["Asset"] = Relationship(
-        back_populates="project", sa_relationship_kwargs={"lazy": "joined", "cascade": "all, delete-orphan"}
+        back_populates="project", sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"}
     )
     chunks: list["AssetChunk"] = Relationship(
-        back_populates="project", sa_relationship_kwargs={"lazy": "joined", "cascade": "all, delete-orphan"}
+        back_populates="project", sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"}
     )
