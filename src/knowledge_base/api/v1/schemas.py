@@ -48,3 +48,7 @@ class ProcessAssetSchema(BaseModel):
     asset_ids: list[UUID] = Field(default_factory=list)
     chunk_size: int = Field(default=settings.DEFAULT_CHUNK_SIZE, min_value=1)
     chunk_overlap: int = Field(default=settings.DEFAULT_CHUNK_OVERLAP, min_value=0)
+
+
+class EmbedAssetSchema(BaseModel):
+    asset_ids: list[UUID] = Field(default_factory=list)

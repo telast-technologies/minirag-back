@@ -15,6 +15,7 @@ from src.knowledge_base.api.v1.schemas import (
     CreateFileAssetSchema,
     CreateTextAssetSchema,
     CreateURlAssetSchema,
+    EmbedAssetSchema,
     ProcessAssetSchema,
 )
 from src.knowledge_base.crud import AssetCRUD
@@ -222,6 +223,50 @@ async def process_assets(
         await db.commit()
 
         return processed_assets
+    except NotFoundException:
+        await db.rollback()
+        raise
+    except BadRequestException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        raise InternalServerException("Failed to process asset")
+
+
+@router.post("/{project_id}/index_assets", response_model=list[Asset])
+@settings.LIMITER.limit("50/minute")
+async def index_assets(
+    request: Request,
+    response: Response,
+    project_id: UUID,
+    db: DBSession,
+    user: CurrentUserDep,
+    body: EmbedAssetSchema,
+):
+    try:
+        project_crud = ProjectCRUD()
+        asset_crud = AssetCRUD()
+
+        project = await project_crud.get(
+            Project.id == project_id,
+            Project.user_id == user.id,
+        )
+        if not project:
+            raise NotFoundException("Project not found")
+
+        assets = [
+            await asset_crud.get(
+                Asset.id == asset_id, Asset.project_id == project_id, Asset.status == AssetStatus.PROCESSED
+            )
+            for asset_id in body.asset_ids
+        ]
+        await db.commit()
+        # index and push into vectordb in one step
+        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        await nlp_controller.index_and_push_into_vectordb(assets)
+        await db.commit()
+        return assets
     except NotFoundException:
         await db.rollback()
         raise

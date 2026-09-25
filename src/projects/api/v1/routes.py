@@ -17,6 +17,16 @@ logger = Logger(name=__name__)
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
 
+@router.get("/get_generation_models", response_model=list[str])
+@settings.LIMITER.limit("50/minute")
+async def get_generation_models(
+    request: Request,
+    response: Response,
+    user: CurrentUserDep,
+):
+    return settings.GENERATION_MODEL_IDS
+
+
 @router.post("/create", response_model=ProjectDetailSchema, status_code=status.HTTP_201_CREATED)
 @settings.LIMITER.limit("50/minute")
 async def create_project(
