@@ -31,12 +31,14 @@ class VectorDBController:
         texts: list[str],
         metadata: list[dict[str, Any]],
         vectors: list[list[float]],
-        record_ids: list[UUID],
+        chunk_ids: list[UUID],
+        asset_ids: list[UUID],
     ):
         return await self.session.insert_many(
             collection_name=collection_name,
             texts=texts,
             metadata=metadata,
             vectors=vectors,
-            record_ids=record_ids,
+            chunk_ids=chunk_ids,
+            asset_ids=asset_ids,
         )

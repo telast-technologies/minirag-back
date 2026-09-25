@@ -1,4 +1,5 @@
 import contextvars
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
@@ -8,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.config.db.models import metadata
 from src.config.loggers import Logger
-from src.config.settings import settings
+from src.config.settings import VectorDBBackend, settings
 from src.utils.vectordb.factory import VectorDBProviderFactory
 
 logger = Logger(__name__)
@@ -21,9 +22,14 @@ AsyncSessionLocal = sessionmaker(
     expire_on_commit=False,
 )
 
+# VectorDB Configurations
+VECTORDB_CLIENT_MAP = {
+    VectorDBBackend.QDRANT.value: Path("src/assets/db/qdrant"),
+    VectorDBBackend.PGVECTOR.value: AsyncSessionLocal,
+}
 vectordb_client = VectorDBProviderFactory(settings.VECTOR_DB_BACKEND).create(
     {
-        "db_client": AsyncSessionLocal,
+        "db_client": VECTORDB_CLIENT_MAP[settings.VECTOR_DB_BACKEND],
         "distance_method": settings.VECTOR_DB_DISTANCE_METHOD,
         "default_vector_size": settings.VECTOR_DB_DEFAULT_SIZE,
         "index_threshold": settings.VECTOR_DB_INDEX_THRESHOLD,

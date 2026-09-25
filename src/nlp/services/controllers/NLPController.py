@@ -32,12 +32,14 @@ class NLPController:
         )
         # step2: insert into vector db
         for asset, embedding in embeddings.items():
+            asset_ids = [asset] * len(embedding["chunk_ids"])
             _ = await self.vectordb.insert_many(
                 collection_name=self.collection_name,
                 texts=embedding["texts"],
                 metadata=embedding["metadata"],
                 vectors=embedding["vectors"],
-                record_ids=embedding["chunk_ids"],
+                chunk_ids=embedding["chunk_ids"],
+                asset_ids=asset_ids,
             )
 
     async def index_and_push_into_vectordb(self, assets: list[Asset]) -> list[UUID]:

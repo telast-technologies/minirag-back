@@ -12,7 +12,14 @@ logger = Logger(__name__)
 
 
 class PGVectorProvider(VectorDBInterface):
-    TABEL_SCHEMA = {"id": "id", "text": "text", "vector": "vector", "metadata": "metadata", "chunk_id": "chunk_id"}
+    TABEL_SCHEMA = {
+        "id": "id",
+        "text": "text",
+        "vector": "vector",
+        "metadata": "metadata",
+        "chunk_id": "chunk_id",
+        "asset_id": "asset_id",
+    }
 
     DISTANCE_METHOD = {
         DistanceMethod.COSINE.value: "vector_cosine_ops",
@@ -119,7 +126,9 @@ class PGVectorProvider(VectorDBInterface):
                     f'{self.TABEL_SCHEMA["vector"]} vector({embedding_size}), '
                     f'{self.TABEL_SCHEMA["metadata"]} jsonb DEFAULT \'{{}}\', '
                     f'{self.TABEL_SCHEMA["chunk_id"]} uuid, '
-                    f'FOREIGN KEY ({self.TABEL_SCHEMA["chunk_id"]}) REFERENCES assetchunk(id)'
+                    f'{self.TABEL_SCHEMA["asset_id"]} uuid, '
+                    f'FOREIGN KEY ({self.TABEL_SCHEMA["chunk_id"]}) REFERENCES assetchunk(id),'
+                    f'FOREIGN KEY ({self.TABEL_SCHEMA["asset_id"]}) REFERENCES asset(id)'
                     ")"
                 )
                 await session.exec(create_sql)
@@ -180,14 +189,20 @@ class PGVectorProvider(VectorDBInterface):
         return await self.create_vector_index(collection_name=collection_name, index_type=index_type)
 
     async def insert_one(
-        self, collection_name: str, text: str, vector: list, metadata: dict = None, record_id: str = None
+        self,
+        collection_name: str,
+        text: str,
+        vector: list,
+        metadata: dict = None,
+        chunk_id: str = None,
+        asset_id: str = None,
     ):
         is_collection_existed = await self.is_collection_existed(collection_name=collection_name)
         if not is_collection_existed:
             logger.error(f"Can not insert new record to non-existed collection: {collection_name}")
             return False
 
-        if not record_id:
+        if not chunk_id:
             logger.error(f"Can not insert new record without chunk_id: {collection_name}")
             return False
 
@@ -197,11 +212,12 @@ class PGVectorProvider(VectorDBInterface):
             vector_tb = self.TABEL_SCHEMA["vector"]
             metadata_tb = self.TABEL_SCHEMA["metadata"]
             chunk_id_tb = self.TABEL_SCHEMA["chunk_id"]
+            asset_id_tb = self.TABEL_SCHEMA["asset_id"]
 
             insert_sql = sql_text(
                 f'INSERT INTO "{collection_name}" '
-                f"({text_tb}, {vector_tb}, {metadata_tb}, {chunk_id_tb}) "
-                "VALUES (:text, :vector, :metadata, CAST(:chunk_id AS uuid))"
+                f"({text_tb}, {vector_tb}, {metadata_tb}, {chunk_id_tb}, {asset_id_tb}) "
+                "VALUES (:text, :vector, :metadata, CAST(:chunk_id AS uuid), CAST(:asset_id AS uuid))"
             )
             metadata_json = json.dumps(metadata, ensure_ascii=False) if metadata is not None else "{}"
             await session.exec(
@@ -210,7 +226,8 @@ class PGVectorProvider(VectorDBInterface):
                     "text": text,
                     "vector": "[" + ",".join([str(v) for v in vector]) + "]",
                     "metadata": metadata_json,
-                    "chunk_id": record_id,
+                    "chunk_id": chunk_id,
+                    "asset_id": asset_id,
                 },
             )
             await session.commit()
@@ -224,7 +241,8 @@ class PGVectorProvider(VectorDBInterface):
         texts: list,
         vectors: list,
         metadata: list = None,
-        record_ids: list = None,
+        chunk_ids: list = None,
+        asset_ids: list = None,
         batch_size: int = 50,
     ):
         is_collection_existed = await self.is_collection_existed(collection_name=collection_name)
@@ -232,7 +250,11 @@ class PGVectorProvider(VectorDBInterface):
             logger.error(f"Can not insert new records to non-existed collection: {collection_name}")
             return False
 
-        if len(vectors) != len(record_ids):
+        if len(asset_ids) != len(chunk_ids):
+            logger.error("Invalid data items for collection: {collection_name}")
+            return False
+
+        if len(vectors) != len(chunk_ids):
             logger.error(f"Invalid data items for collection: {collection_name}")
             return False
 
@@ -244,11 +266,12 @@ class PGVectorProvider(VectorDBInterface):
                 batch_texts = texts[i : i + batch_size]
                 batch_vectors = vectors[i : i + batch_size]
                 batch_metadata = metadata[i : i + batch_size]
-                batch_record_ids = record_ids[i : i + batch_size]
+                batch_chunk_ids = chunk_ids[i : i + batch_size]
+                batch_asset_ids = asset_ids[i : i + batch_size]
 
                 values = []
-                for _text, _vector, _metadata, _record_id in zip(
-                    batch_texts, batch_vectors, batch_metadata, batch_record_ids
+                for _text, _vector, _metadata, _chunk_id, _asset_id in zip(
+                    batch_texts, batch_vectors, batch_metadata, batch_chunk_ids, batch_asset_ids
                 ):
                     metadata_json = json.dumps(_metadata, ensure_ascii=False) if _metadata is not None else "{}"
                     values.append(
@@ -256,7 +279,8 @@ class PGVectorProvider(VectorDBInterface):
                             "text": _text,
                             "vector": "[" + ",".join([str(v) for v in _vector]) + "]",
                             "metadata": metadata_json,
-                            "chunk_id": _record_id,
+                            "chunk_id": _chunk_id,
+                            "asset_id": _asset_id,
                         }
                     )
 
@@ -265,8 +289,9 @@ class PGVectorProvider(VectorDBInterface):
                     f'({self.TABEL_SCHEMA["text"]}, '
                     f'{self.TABEL_SCHEMA["vector"]}, '
                     f'{self.TABEL_SCHEMA["metadata"]}, '
-                    f'{self.TABEL_SCHEMA["chunk_id"]}) '
-                    f"VALUES (:text, :vector, :metadata, CAST(:chunk_id AS uuid))"
+                    f'{self.TABEL_SCHEMA["chunk_id"]}, '
+                    f'{self.TABEL_SCHEMA["asset_id"]}) '
+                    f"VALUES (:text, :vector, :metadata, CAST(:chunk_id AS uuid), CAST(:asset_id AS uuid))"
                 )
                 await session.exec(batch_insert_sql, params=values)
 
