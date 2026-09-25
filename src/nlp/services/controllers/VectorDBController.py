@@ -25,6 +25,24 @@ class VectorDBController:
     async def create_collection(self, collection_name: str, embedding_size: int):
         return await self.session.create_collection(collection_name=collection_name, embedding_size=embedding_size)
 
+    async def insert_one(
+        self,
+        collection_name: str,
+        text: str,
+        metadata: dict[str, Any],
+        vector: list[float],
+        chunk_id: UUID,
+        asset_id: UUID,
+    ):
+        return await self.session.insert_one(
+            collection_name=collection_name,
+            text=text,
+            metadata=metadata,
+            vector=vector,
+            chunk_id=chunk_id,
+            asset_id=asset_id,
+        )
+
     async def insert_many(
         self,
         collection_name: str,
@@ -42,3 +60,6 @@ class VectorDBController:
             chunk_ids=chunk_ids,
             asset_ids=asset_ids,
         )
+
+    async def search_by_vector(self, collection_name: str, vector: list[float], limit: int):
+        return await self.session.search_by_vector(collection_name=collection_name, vector=vector, limit=limit)

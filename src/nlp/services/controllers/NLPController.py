@@ -1,13 +1,14 @@
 from typing import Any
 from uuid import UUID
 
-from src.knowledge_base.enums import AssetStatus
 from src.knowledge_base.crud import AssetCRUD
-from src.knowledge_base.services.assets import AssetService
+from src.knowledge_base.enums import AssetStatus
 from src.knowledge_base.models import Asset
+from src.knowledge_base.services.assets import AssetService
 from src.nlp.services.controllers.EmbeddingController import EmbeddingController
 from src.nlp.services.controllers.VectorDBController import VectorDBController
 from src.projects.models import Project
+from src.utils.llm.embedding.enums import EmbeddingDocumentType
 
 
 class NLPController:
@@ -24,8 +25,8 @@ class NLPController:
     def collection_name(self) -> str:
         return self.vectordb.get_collection_name(self.project)
 
-    async def index(self, assets: list[Asset]):
-        return await self.embedder.embed(assets=assets)
+    async def index_assets(self, assets: list[Asset]):
+        return await self.embedder.embed_assets(assets=assets)
 
     async def push_into_vectordb(self, embeddings: dict[UUID, dict[str, list[list[float]] | list[dict[str, Any]]]]):
         # step1: create collection if not exists
@@ -51,8 +52,24 @@ class NLPController:
 
     async def index_and_push_into_vectordb(self, assets: list[Asset]) -> list[UUID]:
         # step1: get text embedding vector
-        embeddings = await self.index(assets=assets)
+        embeddings = await self.index_assets(assets=assets)
         # step2: push into vectordb
         _ = await self.push_into_vectordb(embeddings)
 
         return True
+
+    async def search(self, text: str, limit: int):
+        # embed the query text commming from the user query
+        vector = await self.embedder.embed_text(text=text, document_type=EmbeddingDocumentType.QUERY.value)
+
+        if not vector or len(vector) == 0:
+            return False
+
+        # get the semantically similar texts from the vector db
+        results = await self.vectordb.search_by_vector(
+            collection_name=self.collection_name,
+            vector=vector,
+            limit=limit,
+        )
+        # return results comming from the vector db
+        return [result for result in results if result.score >= 0.5]

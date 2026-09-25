@@ -10,10 +10,11 @@ from src.config.settings import settings
 from src.knowledge_base.crud import AssetCRUD
 from src.knowledge_base.enums import AssetStatus
 from src.knowledge_base.models import Asset
-from src.nlp.api.v1.schemas import EmbedAssetSchema
+from src.nlp.api.v1.schemas import EmbedAssetSchema, SearchRequest
 from src.nlp.services.controllers import NLPController
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
+from src.utils.vectordb.schemas import RetrievedDocument
 
 logger = Logger(name=__name__)
 router = APIRouter(prefix="/api/v1/nlp", tags=["nlp"])
@@ -73,13 +74,14 @@ async def index_assets(
         raise InternalServerException("Failed to process asset")
 
 
-
 @router.get("/{project_id}/index_info", response_model=dict)
+@settings.LIMITER.limit("50/minute")
 async def get_project_index_info(
-    request: Request, 
+    request: Request,
+    response: Response,
     project_id: UUID,
-    db:DBSession,
-    user:CurrentUserDep,
+    db: DBSession,
+    user: CurrentUserDep,
 ):
     try:
         project_crud = ProjectCRUD()
@@ -89,6 +91,38 @@ async def get_project_index_info(
 
         collection_info = await request.app.vectordb.get_collection_info(project)
         return collection_info
+    except NotFoundException:
+        raise
+    except BadRequestException:
+        raise
+    except Exception:
+        raise InternalServerException("Failed to get collection info")
+
+
+@router.post("/{project_id}/index_search", response_model=list[RetrievedDocument])
+@settings.LIMITER.limit("50/minute")
+async def search_index(
+    request: Request,
+    project_id: UUID,
+    db: DBSession,
+    user: CurrentUserDep,
+    body: SearchRequest,
+):
+    try:
+        project_crud = ProjectCRUD()
+        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
+        if not project:
+            raise NotFoundException("Project not found")
+
+        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+
+        results = await nlp_controller.search(text=body.text, limit=body.limit)
+
+        if not results or len(results) == 0:
+            raise BadRequestException("No results found")
+
+        return results
+
     except NotFoundException:
         raise
     except BadRequestException:

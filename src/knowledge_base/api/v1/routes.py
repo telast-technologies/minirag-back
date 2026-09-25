@@ -185,9 +185,7 @@ async def get_assets(
         raise InternalServerException("Failed to get assets")
 
 
-@router.post(
-    "/{project_id}/process_assets", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED
-)
+@router.post("/{project_id}/process_assets", response_model=list[AssetDetailSchema])
 async def process_assets(
     request: Request,
     response: Response,
