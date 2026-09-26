@@ -7,25 +7,21 @@ from src.config.exceptions import BadRequestException, InternalServerException, 
 from src.config.loggers import Logger
 from src.config.permissions import CurrentUserDep
 from src.config.settings import settings
-from src.nlp.api.v1.schemas import SearchRequest
-from src.nlp.services.controllers import NLPController
+from src.nlp.api.v1.schemas import AnswerSchema, SearchRequest
+from src.nlp.services.controllers import GenerationController
+from src.nlp.services.controllers.NLPController import NLPController
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
-from src.utils.vectordb.schemas import RetrievedDocument
+from src.utils.llm.generation.factory import GenerationLLMProviderFactory
 
 logger = Logger(name=__name__)
 router = APIRouter(prefix="/api/v1/nlp", tags=["nlp"])
 
 
-@router.post("/{project_id}/index_search", response_model=list[RetrievedDocument])
+@router.post("/{project_id}/index_answer", response_model=AnswerSchema)
 @settings.LIMITER.limit("50/minute")
-async def search_index(
-    request: Request,
-    response: Response,
-    project_id: UUID,
-    db: DBSession,
-    user: CurrentUserDep,
-    body: SearchRequest,
+async def answer_rag(
+    request: Request, response: Response, db: DBSession, user: CurrentUserDep, project_id: UUID, body: SearchRequest
 ):
     try:
         project_crud = ProjectCRUD()
@@ -33,14 +29,34 @@ async def search_index(
         if not project:
             raise NotFoundException("Project not found")
 
-        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        # setup generation model
+        generation_model_id = project.generation_model_id
+        generation_backend = settings.GENERATION_BACKEND(generation_model_id)
+        generation_api_key = settings.GENERATION_API_KEY(generation_backend)
+        generation_client = GenerationLLMProviderFactory(generation_backend).create(
+            {
+                "api_key": generation_api_key,
+                "generation_model_id": generation_model_id,
+                "default_generation_max_output_tokens": settings.DAFAULT_GENERATION_MAX_TOKENS,
+                "default_generation_temperature": settings.DEFAULT_GENERATION_TEMPERATURE,
+                "default_input_max_characters": settings.DAFAULT_INPUT_MAX_CHARACTERS,
+            }
+        )
+        generator = GenerationController(generation_client)
 
-        results = await nlp_controller.search(text=body.text, limit=body.limit)
+        nlp_controller = NLPController(
+            project=project,
+            vectordb=request.app.vectordb,
+            embedder=request.app.embedder,
+            generator=generator,
+        )
 
-        if not results or len(results) == 0:
+        answer, full_prompt, chat_history = await nlp_controller.answer(query=body.text, limit=body.limit)
+
+        if not answer or len(answer) == 0:
             raise BadRequestException("No results found")
 
-        return results
+        return {"answer": answer, "full_prompt": full_prompt, "chat_history": chat_history}
 
     except NotFoundException:
         raise

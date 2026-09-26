@@ -26,7 +26,7 @@ from src.knowledge_base.services.controllers.FileController import FileControlle
 from src.knowledge_base.services.controllers.ProcessController import ProcessController
 from src.knowledge_base.services.controllers.TextController import TextController
 from src.knowledge_base.services.controllers.URLController import URLController
-from src.nlp.services.controllers import NLPController
+from src.nlp.services.controllers.NLPController import NLPController
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
 
@@ -56,7 +56,11 @@ async def create_text_assets(
         processed_assets = await process_controller.process()
         await db.commit()
         # inialize nlp controller
-        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        nlp_controller = NLPController(
+            project=project,
+            vectordb=request.app.vectordb,
+            embedder=request.app.embedder,
+        )
         # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
@@ -97,7 +101,11 @@ async def create_url_assets(
         processed_assets = await process_controller.process()
         await db.commit()
         # inialize nlp controller
-        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        nlp_controller = NLPController(
+            project=project,
+            vectordb=request.app.vectordb,
+            embedder=request.app.embedder,
+        )
         # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
@@ -137,7 +145,11 @@ async def create_file_assets(
         processed_assets = await process_controller.process()
         await db.commit()
         # inialize nlp controller
-        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        nlp_controller = NLPController(
+            project=project,
+            vectordb=request.app.vectordb,
+            embedder=request.app.embedder,
+        )
         # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
@@ -192,7 +204,7 @@ async def process_assets(
     response: Response,
     project_id: UUID,
     db: DBSession,
-    user: CurrentUserDep,
+    # user: CurrentUserDep,
     body: ProcessAssetSchema,
 ):
     project_crud = ProjectCRUD()
@@ -200,8 +212,9 @@ async def process_assets(
 
     try:
         project = await project_crud.get(
-            Project.id == project_id,
-            Project.user_id == user.id,
+            Project.id
+            == project_id
+            # Project.user_id == user.id,
         )
         if not project:
             raise NotFoundException("Project not found")
@@ -217,7 +230,11 @@ async def process_assets(
         processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
         await db.commit()
         # inialize nlp controller
-        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        nlp_controller = NLPController(
+            project=project,
+            vectordb=request.app.vectordb,
+            embedder=request.app.embedder,
+        )
         # index and push into vectordb in one step
         await nlp_controller.index_and_push_into_vectordb(processed_assets)
         await db.commit()
@@ -263,7 +280,11 @@ async def index_assets(
         ]
         await db.commit()
         # index and push into vectordb in one step
-        nlp_controller = NLPController(project=project, vectordb=request.app.vectordb, embedder=request.app.embedder)
+        nlp_controller = NLPController(
+            project=project,
+            vectordb=request.app.vectordb,
+            embedder=request.app.embedder,
+        )
         await nlp_controller.index_and_push_into_vectordb(assets)
         await db.commit()
         return assets

@@ -54,7 +54,9 @@ class OpenAIEmbeddingProvider(EmbeddingLLMInterface):
             return None
 
         response = self.client.embeddings.create(
-            model=self.embedding_model_id, input=self.process_text(text), input_type=self.INPUT_TYPE[document_type]
+            model=self.embedding_model_id,
+            input=[self.process_text(t) for t in text],
+            input_type=self.INPUT_TYPE[document_type],
         )
 
         if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:

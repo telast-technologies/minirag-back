@@ -71,19 +71,19 @@ class Settings(BaseSettings):
     DEFAULT_CHUNK_OVERLAP: int = Field(..., description="Default chunk overlap in characters")
     OPENAI_GENERATION_MODEL_IDS: list[str]
     QWEN_GENERATION_MODEL_IDS: list[str]
+    COHERE_GENERATION_MODEL_IDS: list[str]
+
     DEFAULT_GENERATION_MODEL_ID: str
     DAFAULT_INPUT_MAX_CHARACTERS: int = Field(..., description="Default input max characters in characters")
     DAFAULT_GENERATION_MAX_TOKENS: int = Field(..., description="Default generation max tokens in tokens")
-    DAFAULT_GENERATION_TEMPERATURE: float = Field(..., description="Default generation temperature in float")
+    DEFAULT_GENERATION_TEMPERATURE: float = Field(..., description="Default generation temperature in float")
 
     COHERE_EMBEDDING_MODEL_IDS: list[str]
     DEFAULT_EMBEDDING_MODEL_ID: str
-    EMBEDDING_SIZE: int = Field(..., description="Embedding size in dimensions")
 
     VECTOR_DB_BACKEND: str
     VECTOR_DB_DISTANCE_METHOD: str
     VECTOR_DB_INDEX_THRESHOLD: int
-    VECTOR_DB_DEFAULT_SIZE: int
 
     OPENAI_API_KEY: str
     OPENAI_API_URL: str | None = None
@@ -113,15 +113,33 @@ class Settings(BaseSettings):
 
     @property
     def GENERATION_MODEL_IDS(self) -> list[str]:
-        return self.OPENAI_GENERATION_MODEL_IDS + self.QWEN_GENERATION_MODEL_IDS
+        return self.OPENAI_GENERATION_MODEL_IDS + self.QWEN_GENERATION_MODEL_IDS + self.COHERE_GENERATION_MODEL_IDS
 
     @property
     def EMBEDDING_MODEL_IDS(self) -> list[str]:
         return self.COHERE_EMBEDDING_MODEL_IDS
 
+    @property
+    def EMBEDDING_SIZE(self) -> int:
+        MODEL_SIZES = {
+            "embed-multilingual-v3.0": 1024,
+            "embed-english-v3.0": 1024,
+            "embed-english-light-v3.0": 384,
+            "embed-multilingual-light-v3.0": 384,
+            "text-embedding-3-small": 1536,
+            "text-embedding-3-large": 3072,
+            "text-embedding-ada-002": 1536,
+        }
+        return MODEL_SIZES.get(self.DEFAULT_EMBEDDING_MODEL_ID, 1024)
+
+    @property
+    def VECTOR_DB_DEFAULT_SIZE(self) -> int:
+        return self.EMBEDDING_SIZE
+
     def GENERATION_BACKEND(self, model_id: str) -> str:
         BACKEND_MAP = {
             tuple(self.OPENAI_GENERATION_MODEL_IDS + self.QWEN_GENERATION_MODEL_IDS): LLMBackend.OPENAI.value,
+            tuple(self.COHERE_GENERATION_MODEL_IDS): LLMBackend.COHERE.value,
         }
         for key in BACKEND_MAP.keys():
             if model_id in key:

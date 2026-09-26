@@ -9,7 +9,7 @@ from src.config.exceptions import InternalServerException, NotFoundException
 from src.config.loggers import Logger
 from src.config.permissions import CurrentUserDep
 from src.config.settings import settings
-from src.projects.api.v1.schemas import ModifyProjectSchema, ProjectDetailSchema
+from src.projects.api.v1.schemas import CreateProjectSchema, ProjectDetailSchema, UpdateProjectSchema
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
 
@@ -34,7 +34,7 @@ async def create_project(
     response: Response,
     db: DBSession,
     user: CurrentUserDep,
-    body: ModifyProjectSchema,
+    body: CreateProjectSchema,
 ):
     project_crud = ProjectCRUD()
     data = body.model_dump()
@@ -78,7 +78,7 @@ async def update_project(
     project_id: UUID,
     db: DBSession,
     user: CurrentUserDep,
-    body: ModifyProjectSchema,
+    body: UpdateProjectSchema,
 ):
     project_crud = ProjectCRUD()
     data = body.model_dump(exclude_unset=True, exclude_none=True)
