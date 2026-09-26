@@ -258,7 +258,7 @@ class PGVectorProvider(VectorDBInterface):
             logger.error(f"Invalid data items for collection: {collection_name}")
             return False
 
-        if not metadata or len(metadata) == 0:
+        if not metadata:
             metadata = [None] * len(texts)
 
         async with self.db_client() as session:

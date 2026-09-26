@@ -60,8 +60,10 @@ class CoHereGenerationProvider(GenerationLLMInterface):
             }
             for message in chat_history
         ]
-        messages.append({"role": GenerationRolesEnums.USER.value, "content": prompt})
-        response = self.client.chat(model=self.generation_model_id, messages=messages, temperature=temperature)
+        messages.append({"role": GenerationRolesEnums.USER.value, "content": self.process_text(prompt)})
+        response = self.client.chat(
+            model=self.generation_model_id, messages=messages, temperature=temperature, max_tokens=max_output_tokens
+        )
 
         if not response or not getattr(response, "message", None) or not response.message.content:
             logger.error("Error while generating text with CoHere: Empty or invalid response")

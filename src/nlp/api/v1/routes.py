@@ -53,7 +53,7 @@ async def answer_rag(
 
         answer, full_prompt, chat_history = await nlp_controller.answer(query=body.text, limit=body.limit)
 
-        if not answer or len(answer) == 0:
+        if not answer:
             raise BadRequestException("No results found")
 
         return {"answer": answer, "full_prompt": full_prompt, "chat_history": chat_history}

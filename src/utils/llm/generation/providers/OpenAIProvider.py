@@ -64,7 +64,7 @@ class OpenAIGenerationProvider(GenerationLLMInterface):
             temperature=temperature,
         )
 
-        if not response or not response.choices or len(response.choices) == 0 or not response.choices[0].message:
+        if not response or not response.choices or not response.choices[0].message:
             logger.error("Error while generating text with OpenAI")
             return None
 

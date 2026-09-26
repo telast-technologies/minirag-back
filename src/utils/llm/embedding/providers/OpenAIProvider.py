@@ -59,7 +59,7 @@ class OpenAIEmbeddingProvider(EmbeddingLLMInterface):
             input_type=self.INPUT_TYPE[document_type],
         )
 
-        if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
+        if not response or not response.data or not response.data[0].embedding:
             logger.error("Error while embedding text with OpenAI")
             return None
 

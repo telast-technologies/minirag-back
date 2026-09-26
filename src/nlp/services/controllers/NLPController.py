@@ -7,7 +7,7 @@ from src.knowledge_base.enums import AssetStatus
 from src.knowledge_base.models import Asset
 from src.knowledge_base.services.assets import AssetService
 from src.nlp.services.controllers import EmbeddingController, GenerationController, VectorDBController
-from src.nlp.templates import document_template, footer_template
+from src.nlp.templates import document_template, header_template
 from src.projects.models import Project
 from src.utils.llm.embedding.enums import EmbeddingDocumentType
 from src.utils.llm.generation.enums import GenerationRolesEnums
@@ -80,7 +80,7 @@ class NLPController:
         # embed the query text commming from the user query
         vector = self.embedder.provider.embed_text(text=text, document_type=EmbeddingDocumentType.QUERY.value)
 
-        if not vector or len(vector) == 0:
+        if not vector:
             return False
 
         if len(vector) == 1:
@@ -93,7 +93,7 @@ class NLPController:
             limit=limit,
         )
         # return results comming from the vector db
-        return [result for result in results]
+        return results
 
     async def answer(self, query: str, limit: int = 10):
         if not self.generator:
@@ -102,21 +102,21 @@ class NLPController:
         answer, full_prompt, chat_history = "", "", []
         # step 1: retrieve related documents
         retrieved_documents = await self.search(query, limit)
-        if not retrieved_documents or len(retrieved_documents) == 0:
+        if not retrieved_documents:
             logger.info("No retrieved documents found")
             return answer, full_prompt, chat_history
 
-        # step 2: Get the document prompts
+        # step 2: construct header prompt
+        header_prompt = header_template.substitute(query=query)
+        # step 3: Get the document prompts
         document_prompts = "\n".join(
             [
                 document_template.substitute(doc_num=idx, chunk_text=self.generator.provider.process_text(doc.text))
                 for idx, doc in enumerate(retrieved_documents, start=1)
             ]
         )
-        # step 3: construct footer prompt
-        footer_prompt = footer_template.substitute(query=query)
         # step 4: construct the full prompt
-        full_prompt = "\n\n".join([document_prompts, footer_prompt])
+        full_prompt = "\n\n".join([header_prompt, document_prompts])
         # step 5: Construct Generation Client Prompts
         chat_history = [
             self.generator.provider.construct_prompt(
