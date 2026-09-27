@@ -1,9 +1,10 @@
-from src.config.settings import settings
-from src.utils.llm.generation.factory import GenerationLLMProviderFactory
-from src.utils.llm.embedding.factory import EmbeddingLLMProviderFactory
 from src.config.db.session import init_vectordb
-from src.nlp.services.controllers import GenerationController, EmbeddingController, VectorDBController
+from src.config.settings import settings
+from src.nlp.services.controllers import EmbeddingController, GenerationController, VectorDBController
 from src.nlp.services.controllers.NLPController import NLPController
+from src.utils.llm.embedding.factory import EmbeddingLLMProviderFactory
+from src.utils.llm.generation.factory import GenerationLLMProviderFactory
+
 
 class NLPFactory:
     nlp_controller = None
@@ -17,7 +18,7 @@ class NLPFactory:
     async def get_controller(cls) -> NLPController:
         if cls.nlp_controller is not None:
             return cls.nlp_controller
-        
+
         # initialize vectordb provider to app
         vectordb_session = await init_vectordb()
         vectordb = VectorDBController(vectordb_session)

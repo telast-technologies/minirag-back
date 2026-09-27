@@ -1,1 +1,1 @@
-from .WorkflowController import WorkflowController
+from .WorkflowController import WorkflowController  # noqa: F401
