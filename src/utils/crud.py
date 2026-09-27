@@ -28,8 +28,8 @@ class CRUDBase(Generic[ModelType]):
         result = await self.session.exec(statement)
         return result.first()
 
-    async def list(self, *where: Any) -> list[ModelType]:
-        statement = self.select(*where)
+    async def list(self, *where: Any, limit: int = 1000) -> list[ModelType]:
+        statement = self.select(*where).limit(limit)
         result = await self.session.exec(statement)
         return result.all()
 

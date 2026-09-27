@@ -2,7 +2,7 @@ from openai import OpenAI
 
 from src.config.loggers import Logger
 from src.config.settings import settings
-from src.utils.llm.generation.enums import GenerationRolesEnums
+from src.utils.llm.generation.enums import MsgRoles
 from src.utils.llm.generation.interfaces import GenerationLLMInterface
 
 logger = Logger(__name__)
@@ -10,9 +10,9 @@ logger = Logger(__name__)
 
 class OpenAIGenerationProvider(GenerationLLMInterface):
     ROLES = {
-        GenerationRolesEnums.SYSTEM.value: "system",
-        GenerationRolesEnums.USER.value: "user",
-        GenerationRolesEnums.ASSISTANT.value: "assistant",
+        MsgRoles.SYSTEM.value: "system",
+        MsgRoles.USER.value: "user",
+        MsgRoles.ASSISTANT.value: "assistant",
     }
 
     def __init__(
@@ -55,7 +55,7 @@ class OpenAIGenerationProvider(GenerationLLMInterface):
             logger.error("Generation model for OpenAI was not set")
             return None
 
-        chat_history.append(self.construct_prompt(prompt=prompt, role=self.ROLES[GenerationRolesEnums.USER.value]))
+        chat_history.append(self.construct_prompt(prompt=prompt, role=self.ROLES[MsgRoles.USER.value]))
 
         response = self.client.chat.completions.create(
             model=self.generation_model_id,

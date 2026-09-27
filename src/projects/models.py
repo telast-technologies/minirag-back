@@ -24,3 +24,6 @@ class Project(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     chunks: list["AssetChunk"] = Relationship(
         back_populates="project", sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"}
     )
+    sessions: list["Session"] = Relationship(
+        back_populates="project", sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"}
+    )

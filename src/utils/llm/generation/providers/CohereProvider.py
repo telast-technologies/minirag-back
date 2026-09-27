@@ -2,7 +2,7 @@ import cohere
 
 from src.config.loggers import Logger
 from src.config.settings import settings
-from src.utils.llm.generation.enums import GenerationRolesEnums
+from src.utils.llm.generation.enums import MsgRoles
 from src.utils.llm.generation.interfaces import GenerationLLMInterface
 
 logger = Logger(__name__)
@@ -10,9 +10,9 @@ logger = Logger(__name__)
 
 class CoHereGenerationProvider(GenerationLLMInterface):
     ROLES = {
-        GenerationRolesEnums.SYSTEM.value: "system",
-        GenerationRolesEnums.USER.value: "user",
-        GenerationRolesEnums.ASSISTANT.value: "assistant",
+        MsgRoles.SYSTEM.value: "system",
+        MsgRoles.USER.value: "user",
+        MsgRoles.ASSISTANT.value: "assistant",
     }
 
     def __init__(
@@ -45,12 +45,8 @@ class CoHereGenerationProvider(GenerationLLMInterface):
         max_output_tokens: int = settings.DAFAULT_GENERATION_MAX_TOKENS,
         temperature: float = settings.DEFAULT_GENERATION_TEMPERATURE,
     ):
-        if not self.client:
-            logger.error("CoHere client was not set")
-            return None
-
-        if not self.generation_model_id:
-            logger.error("Generation model for CoHere was not set")
+        if not self.client or not self.generation_model_id:
+            logger.error("CoHere client or model ID was not set")
             return None
 
         messages = [
@@ -60,20 +56,74 @@ class CoHereGenerationProvider(GenerationLLMInterface):
             }
             for message in chat_history
         ]
-        messages.append({"role": GenerationRolesEnums.USER.value, "content": self.process_text(prompt)})
-        response = self.client.chat(
-            model=self.generation_model_id, messages=messages, temperature=temperature, max_tokens=max_output_tokens
-        )
+        messages.append({"role": MsgRoles.USER.value, "content": self.process_text(prompt)})
 
-        if not response or not getattr(response, "message", None) or not response.message.content:
-            logger.error("Error while generating text with CoHere: Empty or invalid response")
+        try:
+            response = self.client.chat(
+                model=self.generation_model_id,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_output_tokens,
+            )
+
+            if not response or not getattr(response, "message", None) or not response.message.content:
+                logger.error("Error while generating text with CoHere: Empty or invalid response")
+                return None
+
+            texts = [block.text for block in response.message.content if getattr(block, "type", None) == "text"]
+            return "\n".join(texts)
+        except Exception as e:
+            logger.error(f"Error in generate_text: {str(e)}")
             return None
 
-        # Iterate through the content blocks to find the actual text response
-        # This safely skips 'thinking' blocks or tool call blocks
-        texts = [block.text for block in response.message.content if block.type == "text"]
+    async def generate_stream(
+        self,
+        prompt: str,
+        chat_history: list = [],
+        max_output_tokens: int = settings.DAFAULT_GENERATION_MAX_TOKENS,
+        temperature: float = settings.DEFAULT_GENERATION_TEMPERATURE,
+    ):
+        """
+        دالة توليد النصوص تدفقياً (Streaming) متوافقة مع Cohere V2
+        """
+        if not self.client or not self.generation_model_id:
+            logger.error("CoHere client or model ID was not set")
+            return
 
-        return "\n".join(texts)
+        messages = [
+            {
+                "role": message["role"],
+                "content": message["text"],
+            }
+            for message in chat_history
+        ]
+        messages.append({"role": MsgRoles.USER.value, "content": self.process_text(prompt)})
+
+        try:
+            response = self.client.chat_stream(
+                model=self.generation_model_id,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_output_tokens,
+            )
+
+            for event in response:
+                # استخراج النصوص تدفقياً من أحداث Cohere V2
+                if hasattr(event, "type") and event.type == "content-delta":
+                    delta = getattr(event, "delta", None)
+                    if delta and hasattr(delta, "message"):
+                        msg = delta.message
+                        if msg and hasattr(msg, "content"):
+                            content = msg.content
+                            if content and hasattr(content, "text"):
+                                text_chunk = content.text
+                                if text_chunk:
+                                    yield text_chunk
+                elif hasattr(event, "text") and event.text:
+                    yield event.text
+        except Exception as e:
+            logger.error(f"Error during CoHere streaming: {str(e)}")
+            yield f"\n\n[ERROR]: {str(e)}"
 
     def construct_prompt(self, prompt: str, role: str):
         return {

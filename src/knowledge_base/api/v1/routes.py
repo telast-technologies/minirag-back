@@ -121,12 +121,12 @@ async def create_file_assets(
     response: Response,
     project_id: UUID,
     db: DBSession,
-    # user: CurrentUserDep,
+    user: CurrentUserDep,
     body: CreateFileAssetSchema = Depends(CreateFileAssetSchema.as_form),
 ):
     project_crud = ProjectCRUD()
     try:
-        project = await project_crud.get(Project.id == project_id)
+        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
         if not project:
             raise NotFoundException("Project not found")
 
@@ -162,7 +162,7 @@ async def get_assets(
     db: DBSession,
     user: CurrentUserDep,
     filters: AssetFilter = FilterDepends(AssetFilter),
-    pagination_params: Params = Depends(),
+    pagination: Params = Depends(),
 ):
     project_crud = ProjectCRUD()
     asset_crud = AssetCRUD()
@@ -176,7 +176,7 @@ async def get_assets(
         query = filters.filter(query)
         query = filters.sort(query)
 
-        return await apaginate(db, query, pagination_params, subquery_count=True, unwrap_mode="auto")
+        return await apaginate(db, query, pagination, subquery_count=True, unwrap_mode="auto")
     except NotFoundException:
         await db.rollback()
         raise

@@ -57,14 +57,14 @@ async def get_projects(
     response: Response,
     db: DBSession,
     user: CurrentUserDep,
-    pagination_params: Params = Depends(),
+    pagination: Params = Depends(),
 ):
     try:
         project_crud = ProjectCRUD()
         projects = project_crud.select(
             Project.user_id == user.id,
         )
-        return await apaginate(db, projects, pagination_params, subquery_count=True, unwrap_mode="auto")
+        return await apaginate(db, projects, pagination, subquery_count=True, unwrap_mode="auto")
     except Exception:
         await db.rollback()
         raise InternalServerException("Failed to get projects")

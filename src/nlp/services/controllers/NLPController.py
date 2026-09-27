@@ -10,7 +10,7 @@ from src.nlp.services.controllers import EmbeddingController, GenerationControll
 from src.nlp.templates import document_template, header_template
 from src.projects.models import Project
 from src.utils.llm.embedding.enums import EmbeddingDocumentType
-from src.utils.llm.generation.enums import GenerationRolesEnums
+from src.utils.llm.generation.enums import MsgRoles
 
 logger = Logger(__name__)
 
@@ -57,17 +57,20 @@ class NLPController:
     ):
         if not self.vectordb:
             raise ValueError("VectorDB not set")
+
         # step1: create collection if not exists
         _ = await self.vectordb.session.create_collection(
             collection_name=self.get_collection_name(project),
             embedding_size=self.embedding_size,
         )
+
         # step2: insert into vector db
         asset_curd = AssetCRUD()
         for asset_id, embedding in embeddings.items():
             asset = await asset_curd.get(Asset.id == asset_id)
             asset_service = AssetService(asset)
             asset_ids = [asset_id] * len(embedding["chunk_ids"])
+
             _ = await self.vectordb.session.insert_many(
                 collection_name=self.get_collection_name(project),
                 texts=embedding["texts"],
@@ -91,6 +94,7 @@ class NLPController:
             raise ValueError("Embedder not set")
         if not self.vectordb:
             raise ValueError("VectorDB not set")
+
         # embed the query text commming from the user query
         vector = self.embedder.provider.embed_text(text=text, document_type=EmbeddingDocumentType.QUERY.value)
 
@@ -109,37 +113,54 @@ class NLPController:
         # return results comming from the vector db
         return results
 
-    async def answer(self, project: Project, query: str, limit: int = 10):
-        if not self.generator:
-            raise ValueError("Generator not set")
+    async def _prepare_rag_payload(self, project: Project, query: str, history: list = None, limit: int = 10):
+        """
+        دالة مساعدة مركزية لتجهيز سجل المحادثات (History)، تعليمات النظام (System Prompt)، وبناء سياق الـ RAG.
+        """
+        # 1. بناء الـ System Prompt كأول رسالة
+        system_prompt_msg = [
+            self.generator.provider.construct_prompt(
+                prompt=self.get_system_prompt(project),
+                role=self.generator.provider.ROLES[MsgRoles.SYSTEM.value],
+            )
+        ]
 
-        answer, full_prompt, chat_history = "", "", []
-        # step 1: retrieve related documents
-        retrieved_documents = await self.search(query, limit)
+        # 2. إضافة تاريخ المحادثة السابقة لتفادي فقدان سياق الجلسة
+        chat_history = system_prompt_msg + [
+            self.generator.provider.construct_prompt(
+                prompt=msg["text"], role=self.generator.provider.ROLES[msg["role"]]
+            )
+            for msg in history
+        ]
+
+        # 3. جلب المستندات ذات الصلة (مع تصحيح تمرير الـ project)
+        retrieved_documents = await self.search(project=project, text=query, limit=limit)
+
         if not retrieved_documents:
             logger.info("No retrieved documents found")
-            return answer, full_prompt, chat_history
+            return query, chat_history
 
-        # step 2: construct header prompt
-        header_prompt = header_template.substitute(query=query)
-        # step 3: Get the document prompts
+        # 4. تجهيز المستندات وتغليفها بـ XML Tags (<context>) لتحسين دقة استخراج النماذج
         document_prompts = "\n".join(
             [
                 document_template.substitute(doc_num=idx, chunk_text=self.generator.provider.process_text(doc.text))
                 for idx, doc in enumerate(retrieved_documents, start=1)
             ]
         )
-        # step 4: construct the full prompt
+        # 5. دمج الـ Context مع الـ Header Prompt الخاص بالسؤال
+        header_prompt = header_template.substitute(query=query)
+        # 6. construct the full prompt
         full_prompt = "\n\n".join([header_prompt, document_prompts])
-        # step 5: Construct Generation Client Prompts
-        chat_history = [
-            self.generator.provider.construct_prompt(
-                prompt=self.get_system_prompt(project),
-                role=self.generator.provider.ROLES[GenerationRolesEnums.SYSTEM.value],
-            )
-        ]
 
-        # step 6: generate text
+        return full_prompt, chat_history
+
+    async def answer(self, project: Project, query: str, history: list = None, limit: int = 10):
+        """الإجابة العادية (Non-streaming)"""
+        if not self.generator:
+            raise ValueError("Generator not set")
+
+        full_prompt, chat_history = await self._prepare_rag_payload(project, query, history, limit)
+
         answer = self.generator.provider.generate_text(
             prompt=full_prompt,
             chat_history=chat_history,
@@ -147,3 +168,22 @@ class NLPController:
             temperature=self.generator.provider.default_generation_temperature,
         )
         return answer, full_prompt, chat_history
+
+    async def answer_stream(self, project: Project, query: str, history: list = None, limit: int = 10):
+        """الإجابة التدفقية (Streaming) المتوافقة مع دالة ask"""
+        if not self.generator:
+            raise ValueError("Generator not set")
+
+        full_prompt, chat_history = await self._prepare_rag_payload(project, query, history, limit)
+
+        print(full_prompt)
+        print("=================================")
+        print(chat_history)
+        print("=================================")
+        async for chunk in self.generator.provider.generate_stream(
+            prompt=full_prompt,
+            chat_history=chat_history,
+            max_output_tokens=self.generator.provider.default_generation_max_output_tokens,
+            temperature=self.generator.provider.default_generation_temperature,
+        ):
+            yield chunk

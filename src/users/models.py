@@ -21,6 +21,9 @@ class User(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, table
     projects: list["Project"] = Relationship(
         back_populates="user", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
+    sessions: list["Session"] = Relationship(
+        back_populates="user", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
     def set_password(self, password: str) -> None:
         self.password = hasher.encode(password)

@@ -2,6 +2,7 @@ from sqlmodel import SQLModel
 
 # TODO: import all models
 from src.knowledge_base.models import Asset, AssetChunk  # noqa: F401
+from src.nlp.models import Message, Session  # noqa: F401
 from src.projects.models import Project  # noqa: F401
 from src.users.models import User  # noqa: F401
 
