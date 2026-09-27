@@ -18,38 +18,48 @@ logger = Logger(__name__)
 class NLPController:
     def __init__(
         self,
-        project: Project,
         vectordb: VectorDBController,
         embedder: EmbeddingController,
         generator: GenerationController | None = None,
     ):
-        self.project = project
         self.vectordb = vectordb
         self.embedder = embedder
         self.generator = generator
 
     @property
     def embedding_size(self) -> int:
+        if not self.embedder:
+            raise ValueError("Embedder not set")
         return self.embedder.provider.embedding_size
 
-    @property
-    def collection_name(self) -> str:
-        return self.vectordb.get_collection_name(self.project)
+    def get_system_prompt(self, project: Project) -> str:
+        return project.system_prompt
 
-    @property
-    def system_prompt(self) -> str:
-        return self.project.system_prompt
-
-    async def index_assets(self, assets: list[Asset]):
-        return await self.embedder.embed_assets(assets=assets)
+    def get_collection_name(self, project: Project) -> str:
+        return self.vectordb.get_collection_name(project)
 
     def set_generator(self, generator: GenerationController):
         self.generator = generator
 
-    async def push_into_vectordb(self, embeddings: dict[UUID, dict[str, list[list[float]] | list[dict[str, Any]]]]):
+    def set_embedder(self, embedder: EmbeddingController):
+        self.embedder = embedder
+
+    def set_vectordb(self, vectordb: VectorDBController):
+        self.vectordb = vectordb
+
+    async def index_assets(self, assets: list[Asset]):
+        if not self.embedder:
+            raise ValueError("Embedder not set")
+        return await self.embedder.embed_assets(assets=assets)
+
+    async def push_into_vectordb(
+        self, project: Project, embeddings: dict[UUID, dict[str, list[list[float]] | list[dict[str, Any]]]]
+    ):
+        if not self.vectordb:
+            raise ValueError("VectorDB not set")
         # step1: create collection if not exists
         _ = await self.vectordb.session.create_collection(
-            collection_name=self.collection_name,
+            collection_name=self.get_collection_name(project),
             embedding_size=self.embedding_size,
         )
         # step2: insert into vector db
@@ -59,7 +69,7 @@ class NLPController:
             asset_service = AssetService(asset)
             asset_ids = [asset_id] * len(embedding["chunk_ids"])
             _ = await self.vectordb.session.insert_many(
-                collection_name=self.collection_name,
+                collection_name=self.get_collection_name(project),
                 texts=embedding["texts"],
                 metadata=embedding["metadata"],
                 vectors=embedding["vectors"],
@@ -68,15 +78,19 @@ class NLPController:
             )
             await asset_service.update_status(AssetStatus.INDEXED)
 
-    async def index_and_push_into_vectordb(self, assets: list[Asset]) -> list[UUID]:
+    async def index_and_push_into_vectordb(self, project: Project, assets: list[Asset]) -> list[UUID]:
         # step1: get text embedding vector
         embeddings = await self.index_assets(assets=assets)
         # step2: push into vectordb
-        _ = await self.push_into_vectordb(embeddings)
+        _ = await self.push_into_vectordb(project, embeddings)
 
         return True
 
-    async def search(self, text: str, limit: int):
+    async def search(self, project: Project, text: str, limit: int):
+        if not self.embedder:
+            raise ValueError("Embedder not set")
+        if not self.vectordb:
+            raise ValueError("VectorDB not set")
         # embed the query text commming from the user query
         vector = self.embedder.provider.embed_text(text=text, document_type=EmbeddingDocumentType.QUERY.value)
 
@@ -88,14 +102,14 @@ class NLPController:
 
         # get the semantically similar texts from the vector db
         results = await self.vectordb.session.search_by_vector(
-            collection_name=self.collection_name,
+            collection_name=self.get_collection_name(project),
             vector=vector,
             limit=limit,
         )
         # return results comming from the vector db
         return results
 
-    async def answer(self, query: str, limit: int = 10):
+    async def answer(self, project: Project, query: str, limit: int = 10):
         if not self.generator:
             raise ValueError("Generator not set")
 
@@ -120,7 +134,7 @@ class NLPController:
         # step 5: Construct Generation Client Prompts
         chat_history = [
             self.generator.provider.construct_prompt(
-                prompt=self.system_prompt,
+                prompt=self.get_system_prompt(project),
                 role=self.generator.provider.ROLES[GenerationRolesEnums.SYSTEM.value],
             )
         ]

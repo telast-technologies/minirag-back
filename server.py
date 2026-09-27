@@ -12,10 +12,12 @@ from src.config.middlewares import MIDDLEWARES
 from src.config.settings import settings
 from src.knowledge_base.api.v1.routes import router as knowledge_base_router
 from src.nlp.api.v1.routes import router as nlp_router
-from src.nlp.services.controllers import EmbeddingController, VectorDBController
+from src.nlp.services.controllers import EmbeddingController, GenerationController, VectorDBController
+from src.nlp.services.controllers.NLPController import NLPController
 from src.projects.api.v1.routes import router as project_router
 from src.users.api.v1.routes import router as user_router
 from src.utils.llm.embedding.factory import EmbeddingLLMProviderFactory
+from src.utils.llm.generation.factory import GenerationLLMProviderFactory
 
 
 @asynccontextmanager
@@ -38,10 +40,31 @@ async def lifespan(app: FastAPI):
         }
     )
     embedder = EmbeddingController(embedding_client)
+    # initialize generation provider to app
+    generation_model_id = settings.DEFAULT_GENERATION_MODEL_ID
+    generation_backend = settings.GENERATION_BACKEND(generation_model_id)
+    generation_api_key = settings.GENERATION_API_KEY(generation_backend)
+    generation_client = GenerationLLMProviderFactory(generation_backend).create(
+        {
+            "api_key": generation_api_key,
+            "generation_model_id": generation_model_id,
+            "default_generation_max_output_tokens": settings.DAFAULT_GENERATION_MAX_TOKENS,
+            "default_generation_temperature": settings.DEFAULT_GENERATION_TEMPERATURE,
+            "default_input_max_characters": settings.DAFAULT_INPUT_MAX_CHARACTERS,
+        }
+    )
+    generator = GenerationController(generation_client)
+
+    # initialize nlp controller
+    nlp_controller = NLPController(
+        vectordb=vectordb,
+        embedder=embedder,
+        generator=generator,
+    )
+
     # assign provider to fastapi app
     app.db_session = db_session
-    app.embedder = embedder
-    app.vectordb = vectordb
+    app.nlp_controller = nlp_controller
 
     yield
 

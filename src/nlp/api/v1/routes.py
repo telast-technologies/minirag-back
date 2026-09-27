@@ -9,7 +9,6 @@ from src.config.permissions import CurrentUserDep
 from src.config.settings import settings
 from src.nlp.api.v1.schemas import AnswerSchema, SearchRequest
 from src.nlp.services.controllers import GenerationController
-from src.nlp.services.controllers.NLPController import NLPController
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
 from src.utils.llm.generation.factory import GenerationLLMProviderFactory
@@ -44,14 +43,13 @@ async def answer_rag(
         )
         generator = GenerationController(generation_client)
 
-        nlp_controller = NLPController(
-            project=project,
-            vectordb=request.app.vectordb,
-            embedder=request.app.embedder,
-            generator=generator,
-        )
-
-        answer, full_prompt, chat_history = await nlp_controller.answer(query=body.text, limit=body.limit)
+        nlp_controller = request.app.nlp_controller
+        if (
+            not nlp_controller.generator
+            or nlp_controller.generator.provider.generation_model_id != generation_model_id
+        ):
+            nlp_controller.set_generator(generator)
+        answer, full_prompt, chat_history = await nlp_controller.answer(project, query=body.text, limit=body.limit)
 
         if not answer:
             raise BadRequestException("No results found")
