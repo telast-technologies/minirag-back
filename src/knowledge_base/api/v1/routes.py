@@ -19,21 +19,20 @@ from src.knowledge_base.api.v1.schemas import (
     ProcessAssetSchema,
 )
 from src.knowledge_base.crud import AssetCRUD
-from src.knowledge_base.enums import AssetStatus
 from src.knowledge_base.filters import AssetFilter
 from src.knowledge_base.models import Asset
 from src.knowledge_base.services.controllers.FileController import FileController
-from src.knowledge_base.services.controllers.ProcessController import ProcessController
 from src.knowledge_base.services.controllers.TextController import TextController
 from src.knowledge_base.services.controllers.URLController import URLController
 from src.projects.crud import ProjectCRUD
 from src.projects.models import Project
+from src.workers.services.controllers import WorkflowController
 
 logger = Logger(name=__name__)
 router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 
 
-@router.post("/{project_id}/create_texts", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}/create_texts", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 @settings.LIMITER.limit("50/minute")
 async def create_text_assets(
     request: Request,
@@ -50,18 +49,14 @@ async def create_text_assets(
             raise NotFoundException("Project not found")
 
         new_assets = [await TextController(content=content).save(project) for content in body.content]
-        # process the new assets
-        process_controller = ProcessController(new_assets)
-        processed_assets = await process_controller.process()
-        await db.commit()
-        # inialize nlp controller
-        nlp_controller = request.app.nlp_controller
-        # index and push into vectordb in one step
-        await nlp_controller.index_and_push_into_vectordb(project, processed_assets)
         await db.commit()
 
-        logger.info(f"Processed {len(processed_assets)} assets")
-        return processed_assets
+        # trigger workflow
+        workflow_status = WorkflowController.trigger_process_and_index(project_id=project_id, asset_ids=new_assets)
+
+        logger.info(f"Triggered background processing for {len(new_assets)} text assets")
+        return {"workflow": workflow_status, "created_assets_count": len(new_assets)}
+
     except NotFoundException:
         await db.rollback()
         raise
@@ -73,7 +68,7 @@ async def create_text_assets(
         raise InternalServerException("Failed to create assets")
 
 
-@router.post("/{project_id}/create_urls", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}/create_urls", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 @settings.LIMITER.limit("50/minute")
 async def create_url_assets(
     request: Request,
@@ -91,18 +86,14 @@ async def create_url_assets(
             raise NotFoundException("Project not found")
 
         new_assets = [await URLController(content=content).save(project) for content in body.content]
-        # process assests
-        process_controller = ProcessController(new_assets)
-        processed_assets = await process_controller.process()
-        await db.commit()
-        # inialize nlp controller
-        nlp_controller = request.app.nlp_controller
-        # index and push into vectordb in one step
-        await nlp_controller.index_and_push_into_vectordb(project, processed_assets)
         await db.commit()
 
-        logger.info(f"Processed {len(processed_assets)} assets")
-        return processed_assets
+        # trigger workflow
+        workflow_status = WorkflowController.trigger_process_and_index(project_id=project_id, asset_ids=new_assets)
+
+        logger.info(f"Triggered background processing for {len(new_assets)} URL assets")
+        return {"workflow": workflow_status, "created_assets_count": len(new_assets)}
+
     except NotFoundException:
         await db.rollback()
         raise
@@ -114,35 +105,31 @@ async def create_url_assets(
         raise InternalServerException("Failed to create assets")
 
 
-@router.post("/{project_id}/create_files", response_model=list[AssetDetailSchema], status_code=status.HTTP_201_CREATED)
+@router.post("/{project_id}/create_files", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 @settings.LIMITER.limit("50/minute")
 async def create_file_assets(
     request: Request,
     response: Response,
     project_id: UUID,
     db: DBSession,
-    user: CurrentUserDep,
+    # user: CurrentUserDep,
     body: CreateFileAssetSchema = Depends(CreateFileAssetSchema.as_form),
 ):
     project_crud = ProjectCRUD()
     try:
-        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
+        project = await project_crud.get(Project.id == project_id)
         if not project:
             raise NotFoundException("Project not found")
 
         new_assets = [await FileController(file=content).save(project) for content in body.content]
-        # process the new assets
-        process_controller = ProcessController(new_assets)
-        processed_assets = await process_controller.process()
-        await db.commit()
-        # inialize nlp controller
-        nlp_controller = request.app.nlp_controller
-        # index and push into vectordb in one step
-        await nlp_controller.index_and_push_into_vectordb(project, processed_assets)
         await db.commit()
 
-        logger.info(f"Processed {len(processed_assets)} assets")
-        return processed_assets
+        # trigger workflow
+        workflow_status = WorkflowController.trigger_process_and_index(project_id=project_id, asset_ids=new_assets)
+
+        logger.info(f"Triggered background processing for {len(new_assets)} file assets")
+        return {"workflow": workflow_status, "created_assets_count": len(new_assets)}
+
     except NotFoundException:
         await db.rollback()
         raise
@@ -164,6 +151,7 @@ async def get_assets(
     filters: AssetFilter = FilterDepends(AssetFilter),
     pagination: Params = Depends(),
 ):
+    # هذه الدالة كما هي لأنها مخصصة فقط للاستعلام عن البيانات
     project_crud = ProjectCRUD()
     asset_crud = AssetCRUD()
 
@@ -185,44 +173,31 @@ async def get_assets(
         raise InternalServerException("Failed to get assets")
 
 
-@router.post("/{project_id}/process_assets", response_model=list[AssetDetailSchema])
+@router.post("/{project_id}/process_assets", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 async def process_assets(
     request: Request,
     response: Response,
     project_id: UUID,
     db: DBSession,
-    # user: CurrentUserDep,
+    user: CurrentUserDep,
     body: ProcessAssetSchema,
 ):
     project_crud = ProjectCRUD()
-    asset_crud = AssetCRUD()
 
     try:
-        project = await project_crud.get(
-            Project.id
-            == project_id
-            # Project.user_id == user.id,
-        )
+        project = await project_crud.get(Project.id == project_id, Project.user_id == user.id)
         if not project:
             raise NotFoundException("Project not found")
 
-        assets = [
-            await asset_crud.get(
-                Asset.id == asset_id, Asset.project_id == project_id, Asset.status == AssetStatus.PENDING
-            )
-            for asset_id in body.asset_ids
-        ]
+        # trigger workflow
+        workflow_status = WorkflowController.trigger_process_and_index(
+            project_id=project_id,
+            asset_ids=body.asset_ids,
+            chunk_size=body.chunk_size,
+            chunk_overlap=body.chunk_overlap,
+        )
 
-        process_controller = ProcessController(assets)
-        processed_assets = await process_controller.process(body.chunk_size, body.chunk_overlap)
-        await db.commit()
-        # inialize nlp controller
-        nlp_controller = request.app.nlp_controller
-        # index and push into vectordb in one step
-        await nlp_controller.index_and_push_into_vectordb(project, processed_assets)
-        await db.commit()
-
-        return processed_assets
+        return {"workflow": workflow_status, "message": "Processing triggered"}
     except NotFoundException:
         await db.rollback()
         raise
@@ -234,7 +209,7 @@ async def process_assets(
         raise InternalServerException("Failed to process asset")
 
 
-@router.post("/{project_id}/index_assets", response_model=list[Asset])
+@router.post("/{project_id}/index_assets", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 @settings.LIMITER.limit("50/minute")
 async def index_assets(
     request: Request,
@@ -246,7 +221,6 @@ async def index_assets(
 ):
     try:
         project_crud = ProjectCRUD()
-        asset_crud = AssetCRUD()
 
         project = await project_crud.get(
             Project.id == project_id,
@@ -255,19 +229,10 @@ async def index_assets(
         if not project:
             raise NotFoundException("Project not found")
 
-        assets = [
-            await asset_crud.get(
-                Asset.id == asset_id, Asset.project_id == project_id, Asset.status == AssetStatus.PROCESSED
-            )
-            for asset_id in body.asset_ids
-        ]
-        await db.commit()
-        # initialize nlp controller
-        nlp_controller = request.app.nlp_controller
-        # index and push into vectordb in one step
-        await nlp_controller.index_and_push_into_vectordb(project, assets)
-        await db.commit()
-        return assets
+        # trigger workflow
+        workflow_status = WorkflowController.trigger_index_only(project_id=project_id, asset_ids=body.asset_ids)
+
+        return {"workflow": workflow_status, "message": "Indexing triggered"}
     except NotFoundException:
         await db.rollback()
         raise
@@ -276,4 +241,4 @@ async def index_assets(
         raise
     except Exception:
         await db.rollback()
-        raise InternalServerException("Failed to process asset")
+        raise InternalServerException("Failed to index asset")

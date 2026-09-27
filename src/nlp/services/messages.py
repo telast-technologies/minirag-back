@@ -74,7 +74,7 @@ class MessageService:
                 yield f"\n\n[ERROR]: {e}"
             finally:
                 # 4) حفظ رد المساعد (Assistant) بالكامل في قاعدة البيانات بعد انتهاء الـ Stream
-                async with request.app.db_session() as db_session:
+                async with request.app.state.db_session() as db_session:
                     self.message_crud.session = db_session
                     await self.message_crud.create(
                         {

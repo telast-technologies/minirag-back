@@ -13,9 +13,9 @@ from src.config.loggers import Logger
 from src.config.permissions import CurrentUserDep
 from src.config.settings import settings
 from src.nlp.api.v1.schemas import (
+    CreateMessageSchema,
     CreateSessionSchema,
     MessageDetailSchema,
-    SearchRequest,
     SessionDetailSchema,
     UpdateSessionSchema,
 )
@@ -120,7 +120,12 @@ async def update_session(
 @router.post("/{project_id}/ask", status_code=status.HTTP_200_OK, response_class=StreamingResponse)
 @settings.LIMITER.limit("50/minute")
 async def ask(
-    request: Request, response: Response, db: DBSession, user: CurrentUserDep, project_id: UUID, body: SearchRequest
+    request: Request,
+    response: Response,
+    db: DBSession,
+    user: CurrentUserDep,
+    project_id: UUID,
+    body: CreateMessageSchema,
 ):
     try:
         project_crud = ProjectCRUD()
@@ -158,7 +163,7 @@ async def ask(
         )
         generator = GenerationController(generation_client)
 
-        nlp_controller = request.app.nlp_controller
+        nlp_controller = request.app.state.nlp_controller
         if (
             not nlp_controller.generator
             or nlp_controller.generator.provider.generation_model_id != generation_model_id

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -e
 
-exec celery -A src.workers.celery_app worker --loglevel=info --queues=default --concurrency=4
+exec celery -A src.workers.celery_app worker --loglevel=info -Q default,processing,indexing --concurrency=4

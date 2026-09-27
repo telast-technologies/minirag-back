@@ -12,7 +12,7 @@ class TextController:
 
     async def save(self, project: Project) -> Asset:
         name = hash_text_service.hash(self.content)
-        return await self.crud.create(
+        asset = await self.crud.create(
             {
                 "project_id": project.id,
                 "name": name,
@@ -21,6 +21,7 @@ class TextController:
                 "content": self.content,
             }
         )
+        return asset.id
 
     def extract_metadata(self) -> dict:
         return {}

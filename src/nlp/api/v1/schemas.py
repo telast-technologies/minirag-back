@@ -26,7 +26,7 @@ class UpdateSessionSchema(BaseModel):
     generation_model_id: GenerationModel | None
 
 
-class SearchRequest(BaseModel):
+class CreateMessageSchema(BaseModel):
     session: uuid.UUID | None = None
     text: str = Field(default="", description="the text to search for")
     limit: int = Field(default=5, description="the number of results to return")

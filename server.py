@@ -6,65 +6,27 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from src.config.db.session import close_db, close_vectordb, init_db, init_vectordb
+from src.config.db.session import close_db, close_vectordb, init_db
 from src.config.hashers import hasher
 from src.config.middlewares import MIDDLEWARES
 from src.config.settings import settings
 from src.knowledge_base.api.v1.routes import router as knowledge_base_router
 from src.nlp.api.v1.routes import router as nlp_router
-from src.nlp.services.controllers import EmbeddingController, GenerationController, VectorDBController
-from src.nlp.services.controllers.NLPController import NLPController
+from src.nlp.factory import NLPFactory
 from src.projects.api.v1.routes import router as project_router
 from src.users.api.v1.routes import router as user_router
-from src.utils.llm.embedding.factory import EmbeddingLLMProviderFactory
-from src.utils.llm.generation.factory import GenerationLLMProviderFactory
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # initialize db
     db_session = await init_db()
-    # initialize vectordb provider to app
-    vectordb_session = await init_vectordb()
-    vectordb = VectorDBController(vectordb_session)
-    # initialize embedding provider to app
-    embedding_model_id = settings.DEFAULT_EMBEDDING_MODEL_ID
-    embedding_backend = settings.EMBEDDING_BACKEND(embedding_model_id)
-    embedding_api_key = settings.EMBEDDING_API_KEY(embedding_backend)
-    embedding_client = EmbeddingLLMProviderFactory(embedding_backend).create(
-        {
-            "api_key": embedding_api_key,
-            "embedding_model_id": embedding_model_id,
-            "embedding_size": settings.EMBEDDING_SIZE,
-            "default_input_max_characters": settings.DAFAULT_INPUT_MAX_CHARACTERS,
-        }
-    )
-    embedder = EmbeddingController(embedding_client)
-    # initialize generation provider to app
-    generation_model_id = settings.DEFAULT_GENERATION_MODEL_ID
-    generation_backend = settings.GENERATION_BACKEND(generation_model_id)
-    generation_api_key = settings.GENERATION_API_KEY(generation_backend)
-    generation_client = GenerationLLMProviderFactory(generation_backend).create(
-        {
-            "api_key": generation_api_key,
-            "generation_model_id": generation_model_id,
-            "default_generation_max_output_tokens": settings.DAFAULT_GENERATION_MAX_TOKENS,
-            "default_generation_temperature": settings.DEFAULT_GENERATION_TEMPERATURE,
-            "default_input_max_characters": settings.DAFAULT_INPUT_MAX_CHARACTERS,
-        }
-    )
-    generator = GenerationController(generation_client)
-
     # initialize nlp controller
-    nlp_controller = NLPController(
-        vectordb=vectordb,
-        embedder=embedder,
-        generator=generator,
-    )
-
+    nlp_controller = await NLPFactory.get_controller()
     # assign provider to fastapi app
-    app.db_session = db_session
-    app.nlp_controller = nlp_controller
+    app.state.db_session = db_session
+    app.state.nlp_controller = nlp_controller
+    app.state.hashing = hasher
 
     yield
 
@@ -79,8 +41,6 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     for middleware in MIDDLEWARES:
         app.add_middleware(middleware["middleware"], **middleware["options"])
-
-    app.state.hashing = hasher
 
     @app.get("/metrics", include_in_schema=False)
     async def metrics() -> Response:

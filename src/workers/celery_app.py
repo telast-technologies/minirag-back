@@ -3,37 +3,41 @@ from celery import Celery
 from src.config.settings import settings
 from src.workers.schedules import beat_schedule
 
-# Initialize Celery
-# TODO add includes
-# Example: include=["src.workers.tasks.task1", "src.workers.tasks.task2"]
+# 1. تحديث الـ include لضمان قراءة سيلري للمهام
+# بما أنك تستخدم __init__.py يمكنك كتابة مسار المجلد،
+# أو كتابة مسار الملفات بشكل صريح لضمان التحميل
 celery_app = Celery(
     "minirag",
     broker=settings.REDIS_URL,
-    backend=f"db+{settings.DATABASE_URL_SYNC}",  # PostgreSQL as result backend
-    include=[],
+    backend=f"db+{settings.DATABASE_URL_SYNC}",
+    include=[
+        "src.workers.tasks.file_processing",  # أو اسم الملف الفعلي عندك إذا كان file_processing_2
+        "src.workers.tasks.index_data",
+    ],
 )
 
 # Configuration
 celery_app.conf.update(
-    # Task execution settings
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-    # Task routing (separate queues for different priorities)
-    # TODO: Define task_routes if needed, e.g., for different task types or priorities
-    # Example:"src.workers.tasks.*": {"queue": "..."},
-    task_routes={},
+    task_track_started=True,
+    # 2. تحديد الطوابير (Queues) المخصصة لكل مهمة
+    task_routes={
+        # توجيه مهمة التقطيع إلى طابور اسمه 'processing'
+        "tasks.process_assets": {"queue": "processing"},
+        # توجيه مهمة الفهرسة إلى طابور اسمه 'indexing'
+        "tasks.index_assets": {"queue": "indexing"},
+    },
     # Reliability settings
-    task_acks_late=True,  # Acknowledge after task completes (not before)
-    task_reject_on_worker_lost=True,  # Requeue task if worker dies
-    worker_prefetch_multiplier=1,  # Process one task at a time per worker
-    # Result settings
-    result_expires=3600,  # Delete results after 1 hour
-    # Retry settings
-    task_default_retry_delay=60,  # 1 minute default retry delay
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    worker_prefetch_multiplier=1,
+    result_expires=3600,
+    task_default_retry_delay=60,
 )
 
-# Import schedules (for Celery Beat)
+# Import schedules
 celery_app.conf.beat_schedule = beat_schedule

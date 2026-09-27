@@ -20,7 +20,7 @@ class FileController:
 
         storage_key = S3Storage.write(self.file.file, name)
 
-        return await self.crud.create(
+        asset = await self.crud.create(
             {
                 "project_id": project.id,
                 "name": name,
@@ -29,6 +29,7 @@ class FileController:
                 "content": storage_key,
             }
         )
+        return asset.id
 
     def extract_metadata(self) -> dict:
         return {

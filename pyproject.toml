@@ -49,7 +49,7 @@ dependencies = [
     "PyMuPDF==1.24.3",
     "beautifulsoup4==4.15.0",
     "unstructured==0.27.8",
-    "openai==3.8.0",
+    "openai==3.19.2",
     "cohere==7.1.1",
     "qdrant-client==1.10.1",
     "pgvector==0.4.0",
