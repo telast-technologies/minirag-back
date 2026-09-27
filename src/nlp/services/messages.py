@@ -1,9 +1,10 @@
 from fastapi import Request
 
-from src.nlp.services.controllers import NLPController
-from src.utils.llm.generation.enums import MsgRoles
 from src.nlp.crud import MessageCRUD, SessionCRUD
 from src.nlp.models import Message, Session
+from src.nlp.services.controllers import NLPController
+from src.utils.llm.generation.enums import MsgRoles
+
 
 class MessageService:
     """
@@ -36,10 +37,9 @@ class MessageService:
         """
         query = (Message.session_id == self.session.id,)
         history = await self.message_crud.list(*query, limit=limit)
-        
+
         history = [
-            nlp_controller.generator.provider.construct_prompt(prompt=msg.content, role=msg.role) 
-            for msg in history
+            nlp_controller.generator.provider.construct_prompt(prompt=msg.content, role=msg.role) for msg in history
         ]
         return history
 
@@ -60,7 +60,7 @@ class MessageService:
         await self.message_crud.create(
             {"session_id": self.session.id, "role": MsgRoles.USER.value, "content": content},
         )
-        
+
         async def message_generator():
             accumulated_content: str = ""
             try:
@@ -77,9 +77,13 @@ class MessageService:
                 async with request.app.db_session() as db_session:
                     self.message_crud.session = db_session
                     await self.message_crud.create(
-                        {"session_id": self.session.id, "role": MsgRoles.ASSISTANT.value, "content": accumulated_content},
+                        {
+                            "session_id": self.session.id,
+                            "role": MsgRoles.ASSISTANT.value,
+                            "content": accumulated_content,
+                        },
                     )
-                    # commit 
+                    # commit
                     await db_session.commit()
                     yield "\n\n[DONE]"
 

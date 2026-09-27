@@ -1,4 +1,4 @@
-from src.nlp.models import Session, Message
+from src.nlp.models import Message, Session
 from src.utils.crud import CRUDBase
 
 

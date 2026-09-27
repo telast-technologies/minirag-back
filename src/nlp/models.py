@@ -4,9 +4,9 @@ from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
+from src.config.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 from src.config.settings import settings
 from src.utils.llm.generation.enums import MsgRoles
-from src.config.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class Session(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
@@ -21,8 +21,7 @@ class Session(SQLModel, UUIDPrimaryKeyMixin, TimestampMixin, table=True):
     user: "User" = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "selectin"})
     project: "Project" = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "selectin"})
     messages: list["Message"] = Relationship(
-        back_populates="session", 
-        sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"}
+        back_populates="session", sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"}
     )
 
 
