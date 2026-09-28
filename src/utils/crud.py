@@ -39,22 +39,22 @@ class CRUDBase(Generic[ModelType]):
 
     async def get(self, *where: Any) -> ModelType | None:
         statement = self.select(*where)
-        result = await self.__session.exec(statement)
+        result = await self.session.exec(statement)
         return result.first()
 
     async def list(self, *where: Any, limit: int = 1000) -> list[ModelType]:
         statement = self.select(*where).limit(limit)
-        result = await self.__session.exec(statement)
+        result = await self.session.exec(statement)
         return result.all()
 
     async def exec(self, statement: Select[Any]) -> Any:
-        return await self.__session.exec(statement)
+        return await self.session.exec(statement)
 
     async def create(self, data: dict[str, Any] | ModelType) -> ModelType:
         obj = data if isinstance(data, self.model) else self.model(**data)
-        self.__session.add(obj)
-        await self.__session.flush()
-        await self.__session.refresh(obj)
+        self.session.add(obj)
+        await self.session.flush()
+        await self.session.refresh(obj)
         return obj
 
     async def update(
@@ -70,12 +70,12 @@ class CRUDBase(Generic[ModelType]):
             else:
                 raise AttributeError(f"{type(db_obj).__name__} has no field '{field}'")
 
-        self.__session.add(db_obj)
-        await self.__session.flush()
-        await self.__session.refresh(db_obj)
+        self.session.add(db_obj)
+        await self.session.flush()
+        await self.session.refresh(db_obj)
         return db_obj
 
     async def delete(self, db_obj: ModelType) -> ModelType:
-        await self.__session.delete(db_obj)
-        await self.__session.flush()
+        await self.session.delete(db_obj)
+        await self.session.flush()
         return db_obj
