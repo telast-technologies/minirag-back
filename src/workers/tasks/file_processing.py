@@ -23,23 +23,23 @@ async def _async_process_assets(project_id_str: str, asset_ids_str: list[str], c
     project_id = UUID(project_id_str)
     asset_ids = [UUID(aid) for aid in asset_ids_str]
 
-    result = None  # 1. تعريف متغير النتيجة قبل اللوب
+    result = None
 
     async for db in get_db():
         try:
-            asset_crud = AssetCRUD()
+            asset_crud = AssetCRUD(db)
 
-            assets = [
-                await asset_crud.get(
+            assets = []
+            for asset_id in asset_ids:
+                asset = await asset_crud.get(
                     Asset.id == asset_id, Asset.project_id == project_id, Asset.status == AssetStatus.PENDING
                 )
-                for asset_id in asset_ids
-            ]
-            assets = [a for a in assets if a]
+                if asset:
+                    assets.append(asset)
 
             if not assets:
                 result = {"status": "NO_ASSETS_TO_PROCESS"}
-                break  # 2. خروج آمن بدلاً من return المباشر
+                break
 
             process_controller = ProcessController(assets)
             process_kwargs = {}
@@ -52,11 +52,11 @@ async def _async_process_assets(project_id_str: str, asset_ids_str: list[str], c
             await db.commit()
 
             result = {"status": "SUCCESS", "processed_assets_count": len(assets)}
-            break  # 3. خروج آمن بعد النجاح
+            break
 
         except Exception as e:
             await db.rollback()
             logger.error(f"Error in process_assets_task: {e}")
             raise
 
-    return result  # 4. إرجاع النتيجة من خارج اللوب تماماً
+    return result

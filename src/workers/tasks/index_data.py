@@ -23,37 +23,37 @@ async def _async_index_assets(project_id_str: str, asset_ids_str: list[str]):
     project_id = UUID(project_id_str)
     asset_ids = [UUID(aid) for aid in asset_ids_str]
 
-    result = None  # 1. تعريف متغير النتيجة قبل اللوب
+    result = None
 
     async for db in get_db():
         try:
-            project_crud = ProjectCRUD()
-            asset_crud = AssetCRUD()
+            project_crud = ProjectCRUD(db)
+            asset_crud = AssetCRUD(db)
 
             project = await project_crud.get(Project.id == project_id)
 
-            assets = [
-                await asset_crud.get(
+            assets = []
+            for asset_id in asset_ids:
+                asset = await asset_crud.get(
                     Asset.id == asset_id, Asset.project_id == project_id, Asset.status == AssetStatus.PROCESSED
                 )
-                for asset_id in asset_ids
-            ]
-            assets = [a for a in assets if a]
+                if asset:
+                    assets.append(asset)
 
             if not assets:
                 result = {"status": "NO_ASSETS_TO_INDEX"}
-                break  # 2. خروج آمن بدلاً من return المباشر
+                break
 
             nlp_controller = await NLPFactory.get_controller()
             await nlp_controller.index_and_push_into_vectordb(project, assets)
             await db.commit()
 
             result = {"status": "SUCCESS", "indexed_assets_count": len(assets)}
-            break  # 3. خروج آمن بعد النجاح
+            break
 
         except Exception as e:
             await db.rollback()
             logger.error(f"Error in index_assets_task: {e}")
             raise
 
-    return result  # 4. إرجاع النتيجة من خارج اللوب تماماً
+    return result

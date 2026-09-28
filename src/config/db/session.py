@@ -95,13 +95,21 @@ db_session_context: contextvars.ContextVar[AsyncSession] = contextvars.ContextVa
 
 async def get_db():
     async with AsyncSessionLocal() as session:
-        # 2. وضع الـ session جوه المتغير السياقي
-        token = db_session_context.set(session)
+        token = None
         try:
+            token = db_session_context.set(session)
             yield session
         finally:
-            # تنظيف المتغير بعد انتهاء الريكويست
-            db_session_context.reset(token)
+            if token:
+                try:
+                    db_session_context.reset(token)
+                except ValueError:
+                    # تجاهل خطأ اختلاف الـ Context أثناء الـ Shutdown أو الـ Cleanup في Celery
+                    pass
+            try:
+                await session.close()
+            except Exception as e:
+                logger.error(f"Error closing session: {e}")
 
 
 DBSession = Annotated[AsyncSession, Depends(get_db)]

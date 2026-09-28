@@ -4,18 +4,32 @@ from sqlalchemy.sql import Select
 from sqlmodel import SQLModel, select
 
 from src.config.db.session import db_session_context
+from src.config.loggers import Logger
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
+
+logger = Logger(__name__)
 
 
 class CRUDBase(Generic[ModelType]):
     model: type[ModelType]
 
-    def __init__(self):
-        try:
-            self.session = db_session_context.get()
-        except LookupError:
-            raise RuntimeError("Database session not found in context. Ensure 'get_db' dependency is running.")
+    def __init__(self, session=None):
+        if session:
+            self.__session = session
+        else:
+            try:
+                self.__session = db_session_context.get()
+            except LookupError:
+                logger.error("Database session not found in context. Ensure 'get_db' dependency is running.")
+                raise RuntimeError("Database session not found in context. Ensure 'get_db' dependency is running.")
+
+    def set_session(self, session):
+        self.__session = session
+
+    @property
+    def session(self):
+        return self.__session
 
     def select(self, *where: Any) -> Select[Any]:
         statement = select(self.model)
@@ -25,22 +39,22 @@ class CRUDBase(Generic[ModelType]):
 
     async def get(self, *where: Any) -> ModelType | None:
         statement = self.select(*where)
-        result = await self.session.exec(statement)
+        result = await self.__session.exec(statement)
         return result.first()
 
     async def list(self, *where: Any, limit: int = 1000) -> list[ModelType]:
         statement = self.select(*where).limit(limit)
-        result = await self.session.exec(statement)
+        result = await self.__session.exec(statement)
         return result.all()
 
     async def exec(self, statement: Select[Any]) -> Any:
-        return await self.session.exec(statement)
+        return await self.__session.exec(statement)
 
     async def create(self, data: dict[str, Any] | ModelType) -> ModelType:
         obj = data if isinstance(data, self.model) else self.model(**data)
-        self.session.add(obj)
-        await self.session.flush()
-        await self.session.refresh(obj)
+        self.__session.add(obj)
+        await self.__session.flush()
+        await self.__session.refresh(obj)
         return obj
 
     async def update(
@@ -56,12 +70,12 @@ class CRUDBase(Generic[ModelType]):
             else:
                 raise AttributeError(f"{type(db_obj).__name__} has no field '{field}'")
 
-        self.session.add(db_obj)
-        await self.session.flush()
-        await self.session.refresh(db_obj)
+        self.__session.add(db_obj)
+        await self.__session.flush()
+        await self.__session.refresh(db_obj)
         return db_obj
 
     async def delete(self, db_obj: ModelType) -> ModelType:
-        await self.session.delete(db_obj)
-        await self.session.flush()
+        await self.__session.delete(db_obj)
+        await self.__session.flush()
         return db_obj
