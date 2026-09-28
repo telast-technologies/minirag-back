@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.config.db.models import metadata
@@ -14,10 +15,22 @@ from src.utils.vectordb.factory import VectorDBProviderFactory
 
 logger = Logger(__name__)
 
-engine = create_async_engine(settings.DATABASE_URL_ASYNC, echo=True)
+engine = create_async_engine(settings.DATABASE_URL_ASYNC, echo=True, pool_pre_ping=True)
 
 AsyncSessionLocal = sessionmaker(
     bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+# ==========================================
+# 2. الـ Engine الخاص بالـ Celery Workers
+# ==========================================
+# بيستخدم NullPool عشان يمنع تداخل الـ Processes والـ Forks
+celery_engine = create_async_engine(settings.DATABASE_URL_ASYNC, poolclass=NullPool, echo=True, pool_pre_ping=True)
+
+CeleryAsyncSessionLocal = sessionmaker(
+    bind=celery_engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )

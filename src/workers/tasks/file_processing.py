@@ -1,7 +1,7 @@
 import asyncio
 from uuid import UUID
 
-from src.config.db.session import get_db
+from src.config.db.session import CeleryAsyncSessionLocal, db_session_context
 from src.config.loggers import Logger
 from src.knowledge_base.crud import AssetCRUD
 from src.knowledge_base.enums import AssetStatus
@@ -25,7 +25,8 @@ async def _async_process_assets(project_id_str: str, asset_ids_str: list[str], c
 
     result = None
 
-    async for db in get_db():
+    async with CeleryAsyncSessionLocal() as db:
+        token = db_session_context.set(db)
         try:
             asset_crud = AssetCRUD(db)
 
@@ -39,24 +40,27 @@ async def _async_process_assets(project_id_str: str, asset_ids_str: list[str], c
 
             if not assets:
                 result = {"status": "NO_ASSETS_TO_PROCESS"}
-                break
+            else:
+                process_controller = ProcessController(assets)
+                process_kwargs = {}
+                if chunk_size:
+                    process_kwargs["chunk_size"] = chunk_size
+                if chunk_overlap:
+                    process_kwargs["chunk_overlap"] = chunk_overlap
 
-            process_controller = ProcessController(assets)
-            process_kwargs = {}
-            if chunk_size:
-                process_kwargs["chunk_size"] = chunk_size
-            if chunk_overlap:
-                process_kwargs["chunk_overlap"] = chunk_overlap
+                await process_controller.process(**process_kwargs)
+                await db.commit()
 
-            await process_controller.process(**process_kwargs)
-            await db.commit()
-
-            result = {"status": "SUCCESS", "processed_assets_count": len(assets)}
-            break
+                result = {"status": "SUCCESS", "processed_assets_count": len(assets)}
 
         except Exception as e:
             await db.rollback()
             logger.error(f"Error in process_assets_task: {e}")
             raise
+        finally:
+            try:
+                db_session_context.reset(token)
+            except ValueError:
+                pass
 
     return result
